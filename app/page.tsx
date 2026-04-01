@@ -1,5 +1,5 @@
 "use client"
-alert("서버로 데이터를 보냅니다!"); // 👈 브라우저에 알림창을 띄워버립니다.
+
 export const runtime = "edge";
 import { getLeaderboardViaApi } from "@/lib/googleSheets";
 import { useState, useCallback, useEffect, useMemo } from "react"
@@ -149,6 +149,7 @@ export default function Home() {
   }, [])
 
   const handleCalculate = useCallback(async () => {
+    alert("버튼 클릭됨! 이제 서버로 데이터를 보냅니다.");
     if (!nickname) {
       toast.error("닉네임이 없습니다. 온보딩을 다시 진행해 주세요.")
       return
