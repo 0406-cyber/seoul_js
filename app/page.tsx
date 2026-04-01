@@ -1,7 +1,7 @@
 "use client"
 
 // ❌ export const runtime = "edge"; (삭제됨: Cloudflare 서버 액션 충돌 방지)
-
+export const runtime = "edge";
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { Leaf } from "lucide-react"
 import { toast } from "sonner"
