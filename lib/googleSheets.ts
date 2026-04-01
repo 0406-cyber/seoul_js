@@ -1,7 +1,5 @@
 "use server";
 
-import { GoogleAuth } from "google-auth-library";
-
 export type UsageRow = {
   username: string;
   date: string;
@@ -23,39 +21,94 @@ function todayYmd(): string {
   return `${y}-${m}-${day}`;
 }
 
-/** 구글 인증 및 토큰 발급 (디버깅 로그 포함) */
+// ==========================================
+// 🚀 Edge 호환용 경량화 JWT(토큰) 발급기
+// ==========================================
+function base64urlEncode(str: string) {
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlEncodeBuffer(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 async function getAccessToken() {
-  console.log("🔐 [인증 시작] 환경 변수를 확인합니다...");
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   const spreadsheetId = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!clientEmail || !privateKey || !spreadsheetId) {
-    console.error("❌ [인증 실패] 필수 환경 변수가 누락되었습니다.");
-    throw new Error("환경 변수 누락");
+    throw new Error("서버 환경 변수가 누락되었습니다.");
   }
 
   try {
-    const auth = new GoogleAuth({
-      credentials: {
-        client_email: clientEmail,
-        private_key: privateKey,
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // 1. JWT 헤더(Header) 생성
+    const header = { alg: "RS256", typ: "JWT" };
+    // 2. JWT 페이로드(Payload) 생성
+    const now = Math.floor(Date.now() / 1000);
+    const claimSet = {
+      iss: clientEmail,
+      scope: "https://www.googleapis.com/auth/spreadsheets",
+      aud: "https://oauth2.googleapis.com/token",
+      exp: now + 3600,
+      iat: now,
+    };
+
+    const encodedHeader = base64urlEncode(JSON.stringify(header));
+    const encodedClaimSet = base64urlEncode(JSON.stringify(claimSet));
+    const signatureInput = `${encodedHeader}.${encodedClaimSet}`;
+
+    // 3. 비밀키 텍스트 정제 (헤더, 푸터, 줄바꿈 제거)
+    const pemContents = privateKey
+      .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+      .replace(/-----END PRIVATE KEY-----/g, "")
+      .replace(/\s/g, "");
+      
+    // 4. Web Crypto API를 사용한 서명 (가장 빠르고 가벼움)
+    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+    const cryptoKey = await globalThis.crypto.subtle.importKey(
+      "pkcs8",
+      binaryDer.buffer,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+
+    const signature = await globalThis.crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      cryptoKey,
+      new TextEncoder().encode(signatureInput)
+    );
+
+    const jwt = `${signatureInput}.${base64urlEncodeBuffer(signature)}`;
+
+    // 5. 생성된 JWT를 구글에 보내 진짜 Access Token으로 교환
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
     });
 
-    const client = await auth.getClient();
-    const token = await client.getAccessToken();
-    return { token: token.token, spreadsheetId };
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`구글 토큰 발급 실패: ${errText}`);
+    }
+
+    const data = await res.json();
+    return { token: data.access_token, spreadsheetId };
   } catch (err: any) {
-    console.error("💥 [인증 에러] 구글 인증 실패:", err.message);
-    throw err;
+    throw new Error(`인증 에러: ${err.message}`);
   }
 }
+// ==========================================
 
 /** 데이터 저장 기능 */
 export async function saveUsage(username: string, elec: number, gas: number, co2: number): Promise<void> {
-  console.log(`📝 [기록 시도] 유저: ${username}`);
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("usage!A:E");
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
@@ -71,17 +124,11 @@ export async function saveUsage(username: string, elec: number, gas: number, co2
     body: JSON.stringify({ values }),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    console.error("❌ [저장 실패]:", err);
-    throw new Error(`저장 실패: ${err}`);
-  }
-  console.log("✅ [저장 성공]");
+  if (!response.ok) throw new Error("구글 시트 저장 실패");
 }
 
 /** 로그인 및 횟수 업데이트 */
 export async function loginUser(username: string): Promise<void> {
-  console.log(`🔑 [로그인] 유저: ${username}`);
   const { token, spreadsheetId } = await getAccessToken();
   const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C`;
   
@@ -159,6 +206,10 @@ export async function getLeaderboardViaApi(): Promise<any[]> {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
 
+    if (!response.ok) {
+        throw new Error(`서버 응답 에러: ${response.status}`);
+    }
+
     const data = await response.json();
     const rows = data.values || [];
     
@@ -171,8 +222,7 @@ export async function getLeaderboardViaApi(): Promise<any[]> {
       carbonSaved: Math.floor(Number(row[2]) / 10) || 0,
       streak: 0
     })).sort((a: any, b: any) => b.points - a.points);
-  } catch (error) {
-    console.error("리더보드 에러:", error);
-    return [];
+  } catch (error: any) {
+    throw new Error(error.message);
   }
 }
