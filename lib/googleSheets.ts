@@ -1,5 +1,5 @@
 "use server"; // [중요] 이 파일의 모든 함수는 서버에서만 실행되어 비밀키를 안전하게 보호합니다.
-
+export const runtime = "edge";
 import { GoogleAuth } from "google-auth-library";
 
 export type UsageRow = {
