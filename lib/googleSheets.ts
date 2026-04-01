@@ -10,15 +10,20 @@ export type UsageRow = {
   co2_kg: number;
 };
 
+// CO2 계산 함수
 export async function computeCo2Kg(elecKwh: number, gasM3: number): Promise<number> {
   return elecKwh * 0.4781 + gasM3 * 2.176;
 }
 
 function todayYmd(): string {
   const d = new Date();
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
+/** 구글 인증 및 토큰 발급 (디버깅 로그 포함) */
 async function getAccessToken() {
   console.log("🔐 [인증 시작] 환경 변수를 확인합니다...");
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -26,11 +31,10 @@ async function getAccessToken() {
   const spreadsheetId = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!clientEmail || !privateKey || !spreadsheetId) {
-    console.error("❌ [인증 실패] 필수 환경 변수(이메일, 키, 시트ID) 중 일부가 없습니다.");
+    console.error("❌ [인증 실패] 필수 환경 변수가 누락되었습니다.");
     throw new Error("환경 변수 누락");
   }
 
-  console.log("📡 [구글 인증] GoogleAuth 객체를 생성합니다.");
   try {
     const auth = new GoogleAuth({
       credentials: {
@@ -42,89 +46,133 @@ async function getAccessToken() {
 
     const client = await auth.getClient();
     const token = await client.getAccessToken();
-    console.log("✅ [인증 성공] 토큰 발급 완료");
     return { token: token.token, spreadsheetId };
   } catch (err: any) {
-    console.error("💥 [인증 에러] 구글 인증 과정에서 에러 발생:", err.message);
+    console.error("💥 [인증 에러] 구글 인증 실패:", err.message);
     throw err;
   }
 }
 
+/** 데이터 저장 기능 */
 export async function saveUsage(username: string, elec: number, gas: number, co2: number): Promise<void> {
-  console.log(`📝 [기록 시도] 유저: ${username}, 전기: ${elec}, 가스: ${gas}`);
-  try {
-    const { token, spreadsheetId } = await getAccessToken();
-    const range = encodeURIComponent("usage!A:E");
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
+  console.log(`📝 [기록 시도] 유저: ${username}`);
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("usage!A:E");
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
 
-    const values = [[username, todayYmd(), String(elec), String(gas), String(co2)]];
+  const values = [[username, todayYmd(), String(elec), String(gas), String(co2)]];
 
-    console.log("📤 [데이터 전송] 구글 API로 POST 요청을 보냅니다.");
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ values }),
-    });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ values }),
+  });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`❌ [저장 실패] API 응답 에러: ${response.status} - ${errText}`);
-      throw new Error(`저장 실패: ${errText}`);
+  if (!response.ok) {
+    const err = await response.text();
+    console.error("❌ [저장 실패]:", err);
+    throw new Error(`저장 실패: ${err}`);
+  }
+  console.log("✅ [저장 성공]");
+}
+
+/** 로그인 및 횟수 업데이트 */
+export async function loginUser(username: string): Promise<void> {
+  console.log(`🔑 [로그인] 유저: ${username}`);
+  const { token, spreadsheetId } = await getAccessToken();
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C`;
+  
+  const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await getRes.json();
+  const rows = data.values || [];
+
+  let rowIndex = -1;
+  let currentLogins = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === username) {
+      rowIndex = i + 1;
+      currentLogins = Number(rows[i][1]) || 0;
+      break;
     }
-    console.log("🎉 [저장 완료] 구글 시트에 데이터가 성공적으로 기록되었습니다.");
-  } catch (error: any) {
-    console.error("💥 [최종 에러] saveUsage 실행 중 문제 발생:", error.message);
-    throw error;
+  }
+
+  if (rowIndex !== -1) {
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!B${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(updateUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[currentLogins + 1]] })
+    });
+  } else {
+    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C:append?valueInputOption=USER_ENTERED`;
+    await fetch(appendUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[username, 1, 0]] })
+    });
   }
 }
 
-// ... 나머지 loginUser, updateUserPoints, getLeaderboardViaApi 함수들도 
-// 위와 같은 방식으로 중간에 console.log를 넣어두시면 좋습니다.
-// (지면상 생략하지만, 기존 코드를 그대로 유지해도 작동에는 문제 없습니다.)
+/** 포인트 업데이트 */
+export async function updateUserPoints(username: string, points: number): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C`;
+  
+  const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await getRes.json();
+  const rows = data.values || [];
 
-/** Google Sheets API를 호출하여 실시간 리더보드 데이터를 읽어옵니다. */
+  let rowIndex = -1;
+  let currentPoints = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === username) {
+      rowIndex = i + 1;
+      currentPoints = Number(rows[i][2]) || 0;
+      break;
+    }
+  }
+
+  if (rowIndex !== -1) {
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!C${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(updateUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[currentPoints + points]] })
+    });
+  }
+}
+
+/** 리더보드 가져오기 */
 export async function getLeaderboardViaApi(): Promise<any[]> {
   try {
-    console.log("📊 [리더보드] 데이터를 가져오는 중...");
     const { token, spreadsheetId } = await getAccessToken();
     const range = encodeURIComponent("users!A:C");
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
 
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("시트 데이터 읽기 실패:", err);
-      return [];
-    }
 
     const data = await response.json();
     const rows = data.values || [];
-    console.log(`✅ [리더보드 완료] ${rows.length}행 읽어옴`);
     
     if (rows.length <= 1) return [];
-    const actualData = rows.slice(1);
-
-    return actualData.map((row: any, index: number) => ({
+    return rows.slice(1).map((row: any, index: number) => ({
       id: String(index + 1),
       name: row[0] || "이름 없음",
       loginCount: Number(row[1]) || 0,
       points: Number(row[2]) || 0,
-      carbonSaved: Math.floor(Number(row[2]) / 10) || 0, 
+      carbonSaved: Math.floor(Number(row[2]) / 10) || 0,
       streak: 0
     })).sort((a: any, b: any) => b.points - a.points);
-
   } catch (error) {
-    console.error("네트워크/인증 에러:", error);
+    console.error("리더보드 에러:", error);
     return [];
   }
 }
