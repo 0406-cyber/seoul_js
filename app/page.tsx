@@ -143,10 +143,10 @@ export default function Home() {
     };
 
     // 서버 데이터에서 현재 사용자와 동일한 닉네임 제거 (중복 방지)
-    const filteredRemoteUsers = remoteUsers.filter(user => user.name !== nickname);
-
-    const allUsers = [...filteredRemoteUsers, currentUser];
-
+    const otherUsers = remoteUsers.filter(user => user.name !== nickname);
+    
+    const allUsers = [...otherUsers, currentUser]; 
+    
     return allUsers
       .sort((a, b) => b.points - a.points)
       .map((user, index) => ({ ...user, rank: index + 1 }));
