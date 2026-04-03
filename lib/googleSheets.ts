@@ -315,6 +315,7 @@ export async function getPointLogs(username: string): Promise<any[]> {
 }
 
 /** 피드(시민기자단) 전체 불러오기 (feed 탭) */
+/** 피드(시민기자단) 전체 불러오기 (feed 탭) */
 export async function getFeedPostsViaApi(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -326,17 +327,75 @@ export async function getFeedPostsViaApi(): Promise<any[]> {
     const rows = data.values || [];
     if (rows.length <= 1) return [];
 
-    return rows.slice(1).map((row: any) => ({
-      id: row[0],
-      author: row[1],
-      title: row[2],
-      body: row[3],
-      imageDataUrl: row[4] || undefined,
-      createdAt: Number(row[5]) || Date.now(),
-      likedBy: row[6] ? JSON.parse(row[6]) : []
-    })).reverse(); // 최신 게시글이 위로 오도록 정렬
+    return rows.slice(1)
+      .filter((row: any) => row[0] && String(row[0]).trim() !== "") // ⭐️ 삭제되어 빈칸이 된 행 필터링
+      .map((row: any) => ({
+        id: row[0],
+        author: row[1],
+        title: row[2],
+        body: row[3],
+        imageDataUrl: row[4] || undefined,
+        createdAt: Number(row[5]) || Date.now(),
+        likedBy: row[6] ? JSON.parse(row[6]) : []
+      })).reverse();
   } catch (e) {
     return [];
+  }
+}
+
+/** 피드 수정하기 (feed 탭) */
+export async function editFeedPostViaApi(postId: string, title: string, body: string): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("feed!A:G");
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+  const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+  const data = await getRes.json();
+  const rows = data.values || [];
+
+  let rowIndex = -1;
+  for(let i = 0; i < rows.length; i++) {
+    if(rows[i][0] === postId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex !== -1) {
+    // C열(제목)과 D열(내용)만 덮어쓰기
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/feed!C${rowIndex}:D${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(updateUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[title, body]] })
+    });
+  }
+}
+
+/** 피드 삭제하기 (feed 탭) */
+export async function deleteFeedPostViaApi(postId: string): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("feed!A:G");
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+  const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+  const data = await getRes.json();
+  const rows = data.values || [];
+
+  let rowIndex = -1;
+  for(let i = 0; i < rows.length; i++) {
+    if(rows[i][0] === postId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex !== -1) {
+    // 해당 행을 모두 빈칸으로 덮어써서 삭제 처리
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/feed!A${rowIndex}:G${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(updateUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [["", "", "", "", "", "", ""]] }) 
+    });
   }
 }
 
