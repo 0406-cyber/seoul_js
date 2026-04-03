@@ -1,7 +1,6 @@
 "use client"
 
 export const runtime = "edge";
-// lucide-react에서 닫기 버튼용 X 아이콘 추가
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { Leaf, X } from "lucide-react" 
 import { toast } from "sonner"
@@ -126,8 +125,7 @@ export default function Home() {
     }
   }, []);
 
-    // 포인트 내역 로드
-// ⭐️ 초기 로드 시 서버 데이터 동기화 수정
+  // ⭐️ 초기 로드 시 서버 데이터 동기화 수정
   useEffect(() => {
     if (!nickname) return;
 
@@ -416,7 +414,7 @@ export default function Home() {
     switch (activeTab) {
       case "analysis": return "탄소 분석"
       case "water": return "물 발자국"
-      case "coaching": return "AI"
+      case "coaching": return "AI 코칭"
       case "certification": return "친환경 인증"
       case "ecoCity": return "에코 시티"
       case "feed": return "시민 기자단"
@@ -459,7 +457,8 @@ export default function Home() {
 
     return (
       <main className="min-h-screen bg-background p-4">
-        <div className="max-w-md mx-auto flex flex-col gap-6 <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">">
+        {/* ⭐️ 태그 오류 수정 완료 및 PC 와이드 UI 적용 */}
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
             <button 
@@ -493,6 +492,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
+        {/* ⭐️ PC 와이드 UI 적용 */}
         <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             
@@ -542,6 +542,7 @@ export default function Home() {
         </div>
       </header>
       
+      {/* ⭐️ PC 와이드 UI 적용 */}
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
