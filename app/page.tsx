@@ -459,7 +459,7 @@ export default function Home() {
 
     return (
       <main className="min-h-screen bg-background p-4">
-        <div className="max-w-md mx-auto flex flex-col gap-6 mt-8">
+        <div className="max-w-md mx-auto flex flex-col gap-6 <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
             <button 
@@ -493,7 +493,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-md mx-auto px-4 py-4">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             
             <div className="flex items-center gap-3">
@@ -542,7 +542,7 @@ export default function Home() {
         </div>
       </header>
       
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
             electricityUsage={electricityUsage}
