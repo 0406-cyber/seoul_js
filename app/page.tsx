@@ -73,7 +73,16 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [points, setPoints] = useState(100)
   const [certificationHistory, setCertificationHistory] = useState<CertificationHistory[]>([])
-
+  useEffect(() => {
+    const savedNickname = localStorage.getItem("eco_nickname");
+    if (savedNickname) {
+      setNickname(savedNickname);
+      setIsOnboarded(true);
+      // 저장된 사용자의 포인트와 기록도 함께 로드
+      setPoints(loadPoints(savedNickname, 100));
+      setUsageHistory(loadUsageHistory(savedNickname));
+    }
+  }, []);
   useEffect(() => {
     if (!nickname) return
     setUsageHistory(loadUsageHistory(nickname))
@@ -146,20 +155,20 @@ export default function Home() {
 
 
   const handleOnboardingComplete = useCallback(async (name: string) => {
-    setNickname(name)
-    setIsOnboarded(true)
+    localStorage.setItem("eco_nickname", name); // 저장 추가
+    setNickname(name);
+    setIsOnboarded(true);
     
-    // 로컬 스토리지에 사용자 정보 저장
-    localStorage.setItem("eco_nickname", name)
-
-    setPoints(loadPoints(name, 100))
-    setUsageHistory(loadUsageHistory(name))
+    const initialPoints = loadPoints(name, 100);
+    setPoints(initialPoints);
+    setUsageHistory(loadUsageHistory(name));
+    
     try {
-      await loginUser(name)
+      await loginUser(name);
     } catch (e: any) {
       console.error("온보딩 로그인 에러:", e.message);
     }
-  }, [])
+  }, []);
 
   const awardPoints = useCallback((delta: number, _reason: string) => {
     // reason is kept for future audit/log UI
