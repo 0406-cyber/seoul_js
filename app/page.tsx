@@ -416,7 +416,7 @@ export default function Home() {
     switch (activeTab) {
       case "analysis": return "탄소 분석"
       case "water": return "물 발자국"
-      case "coaching": return "AI 코칭"
+      case "coaching": return "AI"
       case "certification": return "친환경 인증"
       case "ecoCity": return "에코 시티"
       case "feed": return "시민 기자단"
