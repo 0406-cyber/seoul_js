@@ -266,7 +266,7 @@ export default function Home() {
       setIsCoachingLoading(false)
     }
   }, [usageHistory])
-const handleCertify = useCallback(async (): Promise<{
+  const handleCertify = useCallback(async (): Promise<{
     ok: boolean
     earnedPoints?: number
     error?: string
