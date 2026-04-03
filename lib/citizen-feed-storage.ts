@@ -1,42 +1,34 @@
+import { getFeedPostsViaApi, saveFeedPostViaApi, updateFeedPostLikesViaApi } from "./googleSheets";
+
 export type CitizenPost = {
   id: string;
   author: string;
   title: string;
   body: string;
   imageDataUrl?: string;
-  createdAt: number; // epoch ms
-  likedBy: string[]; // usernames
+  createdAt: number; 
+  likedBy: string[]; 
 };
 
-type FeedState = {
-  posts: CitizenPost[];
-  updatedAt: number;
-};
+const CLAIM_KEY = "eco_citizen_feed_claims_v1"; 
 
-const FEED_KEY = "eco_citizen_feed_v1";
-const CLAIM_KEY = "eco_citizen_feed_claims_v1"; // per-week claim record
-
-export function loadFeed(): CitizenPost[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(FEED_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Partial<FeedState> | CitizenPost[];
-    const posts = Array.isArray(parsed) ? parsed : parsed.posts;
-    return Array.isArray(posts) ? posts : [];
-  } catch {
-    return [];
-  }
+// ⭐️ 구글 시트에서 피드 불러오기
+export async function loadFeedAsync(): Promise<CitizenPost[]> {
+  return await getFeedPostsViaApi();
 }
 
-export function saveFeed(posts: CitizenPost[]) {
-  if (typeof window === "undefined") return;
-  const state: FeedState = { posts, updatedAt: Date.now() };
-  localStorage.setItem(FEED_KEY, JSON.stringify(state));
+// ⭐️ 구글 시트에 새 글 작성하기
+export async function saveNewPostAsync(post: CitizenPost): Promise<void> {
+  await saveFeedPostViaApi(post);
 }
 
+// ⭐️ 구글 시트에 좋아요 업데이트하기
+export async function updateLikesAsync(postId: string, likedBy: string[]): Promise<void> {
+  await updateFeedPostLikesViaApi(postId, likedBy);
+}
+
+// 주간 보상 여부(로컬 유지)
 export function weekKey(date = new Date()) {
-  // ISO week-like key (YYYY-Www). Good enough for UI reward gating.
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
@@ -49,9 +41,7 @@ export function loadClaims(): Record<string, string> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(CLAIM_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, string>;
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
@@ -63,4 +53,3 @@ export function markClaimed(week: string, username: string) {
   claims[week] = username;
   localStorage.setItem(CLAIM_KEY, JSON.stringify(claims));
 }
-
