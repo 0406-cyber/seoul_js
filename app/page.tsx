@@ -90,6 +90,15 @@ export default function Home() {
     savePoints(nickname, points)
   }, [nickname, points])
 
+  // 기존 useEffect들 아래에 추가
+  useEffect(() => {
+    const savedNickname = localStorage.getItem("eco_nickname")
+    if (savedNickname) {
+      setNickname(savedNickname)
+      setIsOnboarded(true)
+    }
+  }, [])
+
   // ✅ 수정됨: useEffect 안에서 return JSX를 하면 에러가 나므로 에러는 toast로 처리합니다.
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -139,6 +148,10 @@ export default function Home() {
   const handleOnboardingComplete = useCallback(async (name: string) => {
     setNickname(name)
     setIsOnboarded(true)
+    
+    // 로컬 스토리지에 사용자 정보 저장
+    localStorage.setItem("eco_nickname", name)
+
     setPoints(loadPoints(name, 100))
     setUsageHistory(loadUsageHistory(name))
     try {
@@ -167,6 +180,9 @@ export default function Home() {
     setNickname(null)
     setIsOnboarded(false)
     setAdminPassword("")
+    
+    // 로컬 스토리지에서 사용자 정보 삭제
+    localStorage.removeItem("eco_nickname")
   }, [])
 
   // ✅ 수정됨: 서버 액션(computeCo2Kg 등) 호출 시 에러가 나면 앱이 멈추지 않고 에러 메시지를 보여줍니다.
