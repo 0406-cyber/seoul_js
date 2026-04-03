@@ -73,6 +73,37 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [points, setPoints] = useState(100)
   const [certificationHistory, setCertificationHistory] = useState<CertificationHistory[]>([])
+
+  useEffect(() => {
+    const initApp = async () => {
+      const savedNickname = localStorage.getItem("eco_nickname");
+      if (savedNickname) {
+        setNickname(savedNickname);
+        // 일단 온보딩은 건너뜀
+        setIsOnboarded(true);
+        
+        try {
+          // 서버에서 리더보드 데이터를 가져와 현재 사용자의 실제 포인트를 찾음
+          const remoteData = await getLeaderboardViaApi();
+          const myData = remoteData.find((u) => u.name === savedNickname);
+          
+          if (myData) {
+            // 서버에 데이터가 있다면 그 값을 최우선으로 사용
+            setPoints(myData.points);
+          } else {
+            // 서버에 없으면 로컬 스토리지 값 사용
+            setPoints(loadPoints(savedNickname, 100));
+          }
+        } catch (e) {
+          console.error("서버 데이터 로드 실패, 로컬 데이터로 대체:", e);
+          setPoints(loadPoints(savedNickname, 100));
+        }
+        setUsageHistory(loadUsageHistory(savedNickname));
+      }
+    };
+    initApp();
+  }, []);
+  
   useEffect(() => {
     const savedNickname = localStorage.getItem("eco_nickname");
     if (savedNickname) {
@@ -155,19 +186,33 @@ export default function Home() {
 
 
   const handleOnboardingComplete = useCallback(async (name: string) => {
-    localStorage.setItem("eco_nickname", name); // 저장 추가
     setNickname(name);
     setIsOnboarded(true);
-    
-    const initialPoints = loadPoints(name, 100);
-    setPoints(initialPoints);
-    setUsageHistory(loadUsageHistory(name));
-    
+    localStorage.setItem("eco_nickname", name);
+  
     try {
+      // 서버에서 해당 유저의 기존 점수가 있는지 확인
+      const remoteData = await getLeaderboardViaApi();
+      const existingUser = remoteData.find(u => u.name === name);
+      
+      if (existingUser) {
+        // 기존 유저라면 서버 점수 동기화
+        setPoints(existingUser.points);
+        toast.success(`${name}님, 다시 오신 것을 환영합니다!`);
+      } else {
+        // 신규 유저라면 100P 부여
+        setPoints(100);
+        toast.success("가입을 축하합니다! 시작 포인트 100P가 지급되었습니다.");
+      }
+      
+      // 로그인 기록 업데이트 (구글 시트)
       await loginUser(name);
     } catch (e: any) {
-      console.error("온보딩 로그인 에러:", e.message);
+      console.error("로그인 동기화 에러:", e.message);
+      setPoints(loadPoints(name, 100));
     }
+    
+    setUsageHistory(loadUsageHistory(name));
   }, []);
 
   const awardPoints = useCallback((delta: number, _reason: string) => {
