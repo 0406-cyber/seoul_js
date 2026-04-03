@@ -20,6 +20,8 @@ import {
   loginUser,
   updateUserPoints,
   getLeaderboardViaApi,
+  savePointLog,     // ✨ 추가
+  getPointLogs      // ✨ 추가
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -104,38 +106,36 @@ export default function Home() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
   // 포인트 기록 공통 헬퍼 함수
-  const recordPoint = useCallback((userName: string, desc: string, amt: number) => {
+  const recordPoint = useCallback(async (userName: string, desc: string, amt: number) => {
+    // 1. UI 즉각 반영 (낙관적 업데이트)
     setPointHistory(prev => {
       const newItem: PointHistoryItem = {
-        id: Date.now().toString() + Math.random().toString(36).substring(7),
+        id: Date.now().toString(),
         date: new Date().toLocaleDateString("ko-KR") + " " + new Date().toLocaleTimeString("ko-KR", {hour: '2-digit', minute:'2-digit'}),
         description: desc,
         amount: amt
       };
-      const next = [newItem, ...prev];
-      localStorage.setItem(`eco_point_history_${userName}`, JSON.stringify(next));
-      return next;
+      return [newItem, ...prev];
     });
+
+    // 2. 구글 시트 logs 탭에 기록
+    try {
+      await savePointLog(userName, desc, amt);
+    } catch (e) {
+      console.error("포인트 로그 구글 시트 저장 실패:", e);
+    }
   }, []);
 
-  // 초기 로드 시 서버 데이터 및 포인트 내역 동기화
+    // 포인트 내역 로드
+// ⭐️ 초기 로드 시 서버 데이터 동기화 수정
   useEffect(() => {
     if (!nickname) return;
 
     setUsageHistory(loadUsageHistory(nickname));
 
-    // 포인트 내역 로드
-    const savedPointHistory = localStorage.getItem(`eco_point_history_${nickname}`);
-    if (savedPointHistory) {
-      try {
-        setPointHistory(JSON.parse(savedPointHistory));
-      } catch (e) {
-        console.error("포인트 내역 파싱 오류:", e);
-      }
-    }
-
     const syncWithServer = async () => {
       try {
+        // 1. 리더보드 데이터 동기화
         const remoteData = await getLeaderboardViaApi();
         setRemoteUsers(remoteData);
         
@@ -144,9 +144,14 @@ export default function Home() {
           setPoints(myData.points);
           savePoints(nickname, myData.points); 
         }
+
+        // 2. 포인트 내역 구글 시트에서 불러오기
+        const serverLogs = await getPointLogs(nickname);
+        if (serverLogs && serverLogs.length > 0) {
+          setPointHistory(serverLogs);
+        }
       } catch (e: any) {
         console.error("서버 데이터 동기화 에러:", e.message);
-        toast.error("리더보드를 불러오지 못했습니다.");
       }
     };
     
