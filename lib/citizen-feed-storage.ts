@@ -1,4 +1,10 @@
-import { getFeedPostsViaApi, saveFeedPostViaApi, updateFeedPostLikesViaApi } from "./googleSheets";
+import { 
+  getFeedPostsViaApi, 
+  saveFeedPostViaApi, 
+  updateFeedPostLikesViaApi,
+  editFeedPostViaApi,    // ⭐️ 추가됨
+  deleteFeedPostViaApi   // ⭐️ 추가됨
+} from "./googleSheets";
 
 export type CitizenPost = {
   id: string;
@@ -12,22 +18,28 @@ export type CitizenPost = {
 
 const CLAIM_KEY = "eco_citizen_feed_claims_v1"; 
 
-// ⭐️ 구글 시트에서 피드 불러오기
 export async function loadFeedAsync(): Promise<CitizenPost[]> {
   return await getFeedPostsViaApi();
 }
 
-// ⭐️ 구글 시트에 새 글 작성하기
 export async function saveNewPostAsync(post: CitizenPost): Promise<void> {
   await saveFeedPostViaApi(post);
 }
 
-// ⭐️ 구글 시트에 좋아요 업데이트하기
 export async function updateLikesAsync(postId: string, likedBy: string[]): Promise<void> {
   await updateFeedPostLikesViaApi(postId, likedBy);
 }
 
-// 주간 보상 여부(로컬 유지)
+// ⭐️ 수정 비동기 함수 추가
+export async function editPostAsync(postId: string, title: string, body: string): Promise<void> {
+  await editFeedPostViaApi(postId, title, body);
+}
+
+// ⭐️ 삭제 비동기 함수 추가
+export async function deletePostAsync(postId: string): Promise<void> {
+  await deleteFeedPostViaApi(postId);
+}
+
 export function weekKey(date = new Date()) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
