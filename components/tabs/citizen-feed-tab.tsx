@@ -2,14 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
-import { Heart, ImagePlus, Crown, Send, X } from "lucide-react"
+// ⭐️ 아이콘에 수정(Pencil), 삭제(Trash2) 추가
+import { Heart, ImagePlus, Crown, Send, X, Pencil, Trash2 } from "lucide-react"
 import {
   CitizenPost,
   loadClaims,
-  loadFeedAsync,       // ⭐️ 변경됨
+  loadFeedAsync,
   markClaimed,
-  saveNewPostAsync,    // ⭐️ 변경됨
-  updateLikesAsync,    // ⭐️ 추가됨
+  saveNewPostAsync,
+  updateLikesAsync,
+  editPostAsync,      // ⭐️ 추가됨
+  deletePostAsync,    // ⭐️ 추가됨
   weekKey,
 } from "@/lib/citizen-feed-storage"
 
@@ -33,10 +36,14 @@ export function CitizenFeedTab({
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined)
-  const [isSubmitting, setIsSubmitting] = useState(false) // ⭐️ 제출 중 방지 상태
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // ⭐️ 비동기 피드 불러오기
+  // ⭐️ 수정 모드 상태 관리
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editBody, setEditBody] = useState("")
+
   useEffect(() => {
     const fetchPosts = async () => {
       try {
@@ -84,7 +91,6 @@ export function CitizenFeedTab({
     reader.readAsDataURL(file)
   }
 
-  // ⭐️ 비동기 새 글 작성
   const handlePost = async () => {
     const t = clampText(title, 60)
     const b = clampText(body, 400)
@@ -102,14 +108,12 @@ export function CitizenFeedTab({
       likedBy: [],
     }
     
-    // 화면에 먼저 반영 (낙관적 업데이트)
     setPosts(prev => [newPost, ...prev].sort((a, b) => b.createdAt - a.createdAt))
     setTitle("")
     setBody("")
     setImageDataUrl(undefined)
 
     try {
-      // 구글 시트에 저장
       await saveNewPostAsync(newPost)
     } catch (e) {
       console.error("새 글 저장 실패:", e)
@@ -118,7 +122,6 @@ export function CitizenFeedTab({
     }
   }
 
-  // ⭐️ 비동기 좋아요 토글
   const toggleLike = async (postId: string) => {
     const targetPost = posts.find((p) => p.id === postId)
     if (!targetPost) return
@@ -129,7 +132,6 @@ export function CitizenFeedTab({
       ? likedBy.filter((u) => u !== nickname)
       : [...likedBy, nickname]
 
-    // 화면에 먼저 반영 (낙관적 업데이트)
     const next = posts.map((p) => {
       if (p.id !== postId) return p
       return { ...p, likedBy: updatedLikedBy }
@@ -137,10 +139,54 @@ export function CitizenFeedTab({
     setPosts(next.sort((a, b) => b.createdAt - a.createdAt))
 
     try {
-      // 구글 시트에 좋아요 내역 반영
       await updateLikesAsync(postId, updatedLikedBy)
     } catch (e) {
       console.error("좋아요 업데이트 실패:", e)
+    }
+  }
+
+  // ⭐️ 수정 시작 핸들러
+  const handleEditStart = (post: CitizenPost) => {
+    setEditingPostId(post.id)
+    setEditTitle(post.title)
+    setEditBody(post.body)
+  }
+
+  // ⭐️ 수정 취소 핸들러
+  const handleEditCancel = () => {
+    setEditingPostId(null)
+    setEditTitle("")
+    setEditBody("")
+  }
+
+  // ⭐️ 수정 완료 저장 핸들러
+  const handleEditSave = async (postId: string) => {
+    const t = clampText(editTitle, 60)
+    const b = clampText(editBody, 400)
+    if (!t || !b) return
+
+    // 낙관적 업데이트 (화면 먼저 적용)
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, title: t, body: b } : p))
+    setEditingPostId(null)
+
+    try {
+      await editPostAsync(postId, t, b)
+    } catch (e) {
+      console.error("게시글 수정 실패:", e)
+    }
+  }
+
+  // ⭐️ 삭제 핸들러
+  const handleDelete = async (postId: string) => {
+    if (!window.confirm("정말로 이 게시글을 삭제하시겠습니까?")) return
+
+    // 낙관적 업데이트 (화면에서 우선 숨김)
+    setPosts(prev => prev.filter(p => p.id !== postId))
+
+    try {
+      await deletePostAsync(postId)
+    } catch (e) {
+      console.error("게시글 삭제 실패:", e)
     }
   }
 
@@ -169,7 +215,6 @@ export function CitizenFeedTab({
         </div>
       </div>
 
-      {/* weekly reward banner */}
       {stats.top && stats.top.likes > 0 && (
         <div className="bg-card rounded-3xl p-6 border border-border">
           <div className="flex items-center justify-between gap-4">
@@ -193,7 +238,6 @@ export function CitizenFeedTab({
         </div>
       )}
 
-      {/* composer */}
       <div className="bg-card rounded-3xl p-6 border border-border space-y-4">
         <h3 className="text-lg font-semibold text-foreground">새 글 작성</h3>
 
@@ -257,7 +301,6 @@ export function CitizenFeedTab({
         </button>
       </div>
 
-      {/* feed */}
       <div className="space-y-3">
         {posts.length === 0 ? (
           <div className="bg-card rounded-3xl p-10 border border-border text-center text-muted-foreground">
@@ -267,6 +310,8 @@ export function CitizenFeedTab({
           posts.map((p) => {
             const liked = (p.likedBy ?? []).includes(nickname)
             const likeCount = p.likedBy?.length ?? 0
+            const isEditing = editingPostId === p.id
+
             return (
               <div key={p.id} className="bg-card rounded-3xl border border-border overflow-hidden">
                 {p.imageDataUrl && (
@@ -276,23 +321,69 @@ export function CitizenFeedTab({
                 )}
                 <div className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm text-muted-foreground">{p.author}</p>
-                      <p className="text-lg font-bold text-foreground truncate">{p.title}</p>
+                      
+                      {/* ⭐️ 제목 렌더링 (편집 모드 시 인풋 창) */}
+                      {isEditing ? (
+                        <input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full mt-1 bg-secondary rounded-lg px-3 py-2 text-lg font-bold border border-border focus:border-primary outline-none"
+                        />
+                      ) : (
+                        <p className="text-lg font-bold text-foreground truncate">{p.title}</p>
+                      )}
                     </div>
-                    <button
-                      onClick={() => toggleLike(p.id)}
-                      className={`px-4 py-2 rounded-2xl border transition flex items-center gap-2 ${
-                        liked
-                          ? "bg-primary text-primary-foreground border-primary/50"
-                          : "bg-secondary text-foreground border-border hover:border-primary/40"
-                      }`}
-                    >
-                      <Heart className={`w-4 h-4 ${liked ? "" : "text-primary"}`} />
-                      <span className="font-semibold">{likeCount}</span>
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {/* ⭐️ 본인 글에만 보이는 수정/삭제 버튼 */}
+                      {p.author === nickname && !isEditing && (
+                        <div className="flex items-center border border-border rounded-2xl overflow-hidden mr-1">
+                          <button onClick={() => handleEditStart(p)} className="p-2.5 bg-secondary hover:bg-primary/10 transition text-muted-foreground hover:text-primary">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <div className="w-[1px] h-4 bg-border"></div>
+                          <button onClick={() => handleDelete(p.id)} className="p-2.5 bg-secondary hover:bg-red-500/10 transition text-muted-foreground hover:text-red-500">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => toggleLike(p.id)}
+                        className={`px-4 py-2 rounded-2xl border transition flex items-center gap-2 ${
+                          liked
+                            ? "bg-primary text-primary-foreground border-primary/50"
+                            : "bg-secondary text-foreground border-border hover:border-primary/40"
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${liked ? "" : "text-primary"}`} />
+                        <span className="font-semibold">{likeCount}</span>
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.body}</p>
+
+                  {/* ⭐️ 본문 렌더링 (편집 모드 시 텍스트 에어리어 창) */}
+                  {isEditing ? (
+                    <div className="space-y-3 pt-2 border-t border-border mt-3">
+                      <textarea
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                        className="w-full min-h-[100px] bg-secondary rounded-xl px-4 py-3 text-sm border border-border focus:border-primary outline-none resize-none"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={handleEditCancel} className="px-4 py-2 rounded-xl text-sm font-semibold bg-secondary hover:bg-secondary/80 text-foreground transition">
+                          취소
+                        </button>
+                        <button onClick={() => handleEditSave(p.id)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition">
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.body}</p>
+                  )}
+
                   <p className="text-xs text-muted-foreground">
                     {new Date(p.createdAt).toLocaleString("ko-KR")}
                   </p>
