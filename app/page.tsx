@@ -22,7 +22,7 @@ import {
   savePointLog,
   getPointLogs,
   getAllPointLogs,
-  getSystemLogs // ✨ 시스템 로그 함수 추가
+  getSystemLogs
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -104,9 +104,8 @@ export default function Home() {
   const [pointHistory, setPointHistory] = useState<PointHistoryItem[]>([])
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  // ✨ 관리자 전용 상태 추가
   const [adminLogs, setAdminLogs] = useState<any[]>([])
-  const [sysLogs, setSysLogs] = useState<any[]>([]) // 시스템 로그 상태
+  const [sysLogs, setSysLogs] = useState<any[]>([])
   const [isAdminLogsLoading, setIsAdminLogsLoading] = useState(false)
 
   const recordPoint = useCallback(async (userName: string, desc: string, amt: number) => {
@@ -127,7 +126,6 @@ export default function Home() {
     }
   }, []);
 
-  // 일반 유저 데이터 동기화
   useEffect(() => {
     if (!nickname) return;
 
@@ -156,7 +154,6 @@ export default function Home() {
     syncWithServer();
   }, [nickname]);
 
-  // ✨ 앱 최초 로드 시 사용자 몰래 백그라운드 시스템 로그 전송
   useEffect(() => {
     if (isOnboarded && nickname && nickname !== "admin") {
       fetch('/api/syslog', {
@@ -167,7 +164,6 @@ export default function Home() {
     }
   }, [isOnboarded, nickname]);
 
-  // ✨ 관리자 인증 성공 시 포인트 로그와 시스템 로그를 동시에 로드
   useEffect(() => {
     if (nickname === "admin" && isAdminAuthenticated) {
       setIsAdminLogsLoading(true);
@@ -450,7 +446,6 @@ export default function Home() {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />
   }
 
-  // ✨ 관리자 전용 화면 렌더링
   if (nickname === "admin") {
     if (!isAdminAuthenticated) {
       return (
@@ -468,12 +463,20 @@ export default function Home() {
               className="bg-background text-foreground border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary w-full"
               onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
             />
-            <button
-              onClick={handleAdminLogin}
-              className="bg-primary text-primary-foreground font-bold rounded-xl p-3 hover:bg-primary/90 transition w-full"
-            >
-              인증하기
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleAdminLogin}
+                className="bg-primary text-primary-foreground font-bold rounded-xl p-3 hover:bg-primary/90 transition w-full"
+              >
+                인증하기
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-secondary text-secondary-foreground font-bold rounded-xl p-3 hover:bg-secondary/80 transition w-full"
+              >
+                이전으로 돌아가기
+              </button>
+            </div>
           </div>
         </main>
       )
@@ -492,7 +495,6 @@ export default function Home() {
             </button>
           </div>
           
-          {/* 현황 카드 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
             <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
@@ -503,7 +505,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ✨ 시스템 접근 로그 테이블 (신규 추가) */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
@@ -554,7 +555,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 포인트 내역 로그 테이블 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">📜 전체 포인트 활동 로그</h2>
@@ -609,7 +609,6 @@ export default function Home() {
     )
   }
 
-  // 일반 사용자 화면 렌더링
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
