@@ -1,4 +1,5 @@
 "use client"
+
 export const runtime = "edge";
 import { useState, useCallback, useEffect, useMemo } from "react"
 import { Leaf, X } from "lucide-react" 
@@ -18,8 +19,9 @@ import {
   loginUser,
   updateUserPoints,
   getLeaderboardViaApi,
-  savePointLog,     // ✨ 추가
-  getPointLogs      // ✨ 추가
+  savePointLog,
+  getPointLogs,
+  getAllPointLogs // 구글 시트에서 전체 로그를 가져오는 함수
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -51,7 +53,6 @@ interface LeaderboardEntry {
   streak: number
 }
 
-// 포인트 내역용 인터페이스 추가
 interface PointHistoryItem {
   id: string;
   date: string;
@@ -99,13 +100,14 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [certificationHistory, setCertificationHistory] = useState<CertificationHistory[]>([])
 
-  // 포인트 내역 상태 관리
   const [pointHistory, setPointHistory] = useState<PointHistoryItem[]>([])
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  // 포인트 기록 공통 헬퍼 함수
+  // 관리자 전용 상태
+  const [adminLogs, setAdminLogs] = useState<any[]>([])
+  const [isAdminLogsLoading, setIsAdminLogsLoading] = useState(false)
+
   const recordPoint = useCallback(async (userName: string, desc: string, amt: number) => {
-    // 1. UI 즉각 반영 (낙관적 업데이트)
     setPointHistory(prev => {
       const newItem: PointHistoryItem = {
         id: Date.now().toString(),
@@ -116,7 +118,6 @@ export default function Home() {
       return [newItem, ...prev];
     });
 
-    // 2. 구글 시트 logs 탭에 기록
     try {
       await savePointLog(userName, desc, amt);
     } catch (e) {
@@ -124,7 +125,6 @@ export default function Home() {
     }
   }, []);
 
-  // ⭐️ 초기 로드 시 서버 데이터 동기화 수정
   useEffect(() => {
     if (!nickname) return;
 
@@ -132,7 +132,6 @@ export default function Home() {
 
     const syncWithServer = async () => {
       try {
-        // 1. 리더보드 데이터 동기화
         const remoteData = await getLeaderboardViaApi();
         setRemoteUsers(remoteData);
         
@@ -142,7 +141,6 @@ export default function Home() {
           savePoints(nickname, myData.points); 
         }
 
-        // 2. 포인트 내역 구글 시트에서 불러오기
         const serverLogs = await getPointLogs(nickname);
         if (serverLogs && serverLogs.length > 0) {
           setPointHistory(serverLogs);
@@ -154,6 +152,22 @@ export default function Home() {
     
     syncWithServer();
   }, [nickname]);
+
+  // 관리자 인증 성공 시 전체 로그 로드
+  useEffect(() => {
+    if (nickname === "admin" && isAdminAuthenticated) {
+      setIsAdminLogsLoading(true);
+      getAllPointLogs()
+        .then(logs => {
+          setAdminLogs(logs);
+          setIsAdminLogsLoading(false);
+        })
+        .catch((e) => {
+          console.error("전체 로그 로딩 실패:", e);
+          setIsAdminLogsLoading(false);
+        });
+    }
+  }, [nickname, isAdminAuthenticated]);
 
   useEffect(() => {
     if (!nickname) return;
@@ -200,7 +214,7 @@ export default function Home() {
         toast.success(`${name}님, 다시 오신 것을 환영합니다!`);
       } else {
         setPoints(100);
-        recordPoint(name, "신규 가입 보너스", 100); // ⭐️ 신규 가입 포인트 기록
+        recordPoint(name, "신규 가입 보너스", 100);
         toast.success("가입을 축하합니다! 시작 포인트 100P가 지급되었습니다.");
       }
       
@@ -216,7 +230,7 @@ export default function Home() {
   const awardPoints = useCallback((delta: number, reason: string) => {
     setPoints((p) => p + delta);
     if (nickname) {
-      recordPoint(nickname, reason, delta); // ⭐️ 활동 내역 기록
+      recordPoint(nickname, reason, delta);
     }
   }, [nickname, recordPoint])
 
@@ -376,20 +390,14 @@ export default function Home() {
 
       try {
         await updateUserPoints(nickname, gainedPoints)
-        
         setPoints((p) => p + gainedPoints)
         const description = result.description || "에너지 절약 행동"
-        
-        // ⭐️ 포인트 내역에 기록
         recordPoint(nickname, description, gainedPoints);
 
         setCertificationHistory((prev) => [
           {
             id: Date.now().toString(),
-            date: new Date()
-              .toLocaleDateString("ko-KR")
-              .replace(/\. /g, ".")
-              .slice(0, -1),
+            date: new Date().toLocaleDateString("ko-KR").replace(/\. /g, ".").slice(0, -1),
             type: description,
             points: gainedPoints,
           },
@@ -399,7 +407,7 @@ export default function Home() {
         return { ok: true, earnedPoints: gainedPoints }
       } catch (e: any) {
         console.error("포인트 업데이트 에러:", e.message);
-        toast.error("서버와 동기화하는 중 문제가 발생했습니다. 포인트를 저장할 수 없습니다.");
+        toast.error("서버와 동기화하는 중 문제가 발생했습니다.");
         return { ok: false, error: "sync_failed" }
       }
 
@@ -456,7 +464,6 @@ export default function Home() {
 
     return (
       <main className="min-h-screen bg-background p-4">
-        {/* ⭐️ 태그 오류 수정 완료 및 PC 와이드 UI 적용 */}
         <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
@@ -478,9 +485,54 @@ export default function Home() {
             </div>
           </div>
 
+          {/* 전체 서버 로그 섹션 */}
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">📜 전체 활동 로그</h2>
+              <span className="text-xs text-muted-foreground">최근 100건</span>
+            </div>
+            
+            <div className="bg-background rounded-xl border border-border overflow-hidden">
+              {isAdminLogsLoading ? (
+                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                  서버에서 로그를 불러오는 중입니다...
+                </div>
+              ) : adminLogs.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  기록된 로그가 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">사용자</th>
+                        <th className="px-4 py-3 font-medium">활동 내역</th>
+                        <th className="px-4 py-3 font-medium text-right whitespace-nowrap">포인트</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {adminLogs.slice(0, 100).map((log) => (
+                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{log.date}</td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap">{log.username}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{log.description}</td>
+                          <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${log.amount > 0 ? 'text-primary' : 'text-red-500'}`}>
+                            {log.amount > 0 ? '+' : ''}{log.amount}P
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-primary/10 p-6 rounded-2xl border border-primary/20">
             <p className="text-sm text-primary font-medium text-center">
-              ※ 전체 사용량 상세 데이터 및 오류 로그(logs)는 연동된 구글 시트에서 직접 확인 및 관리하실 수 있습니다.
+              ※ 전체 사용량 상세 데이터 및 이전 기록은 연동된 구글 시트에서 계속 관리하실 수 있습니다.
             </p>
           </div>
         </div>
@@ -491,40 +543,28 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
-        {/* ⭐️ PC 와이드 UI 적용 */}
         <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center">
                 <Leaf className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-foreground">
-                  {getTabTitle()}
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  탄소 절약 & AI 에너지 코칭
-                </p>
+                <h1 className="text-lg font-bold text-foreground">{getTabTitle()}</h1>
+                <p className="text-xs text-muted-foreground">탄소 절약 & AI 에너지 코칭</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              
-              {/* ⭐️ 클릭 시 포인트 내역 모달 열림 */}
               <button 
                 onClick={() => setIsHistoryModalOpen(true)}
                 className="flex items-center gap-2 bg-card border border-border rounded-2xl px-3 py-2 hover:bg-secondary transition-colors"
                 title="포인트 내역 보기"
               >
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary">
-                    {nickname?.charAt(0)}
-                  </span>
+                  <span className="text-xs font-bold text-primary">{nickname?.charAt(0)}</span>
                 </div>
-                <span className="text-sm font-medium text-foreground">
-                  {points}P
-                </span>
+                <span className="text-sm font-medium text-foreground">{points}P</span>
               </button>
 
               <button 
@@ -534,14 +574,11 @@ export default function Home() {
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               </button>
-
             </div>
-
           </div>
         </div>
       </header>
       
-      {/* ⭐️ PC 와이드 UI 적용 */}
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
@@ -556,9 +593,7 @@ export default function Home() {
           />
         )}
 
-        {activeTab === "water" && (
-          <WaterFootprintTab />
-        )}
+        {activeTab === "water" && <WaterFootprintTab />}
 
         {activeTab === "coaching" && (
           <CoachingTab
@@ -597,16 +632,12 @@ export default function Home() {
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* ⭐️ 포인트 내역 모달 */}
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-card w-full max-w-sm rounded-3xl shadow-xl flex flex-col max-h-[80vh] border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-border bg-background">
               <h2 className="text-lg font-bold text-foreground">포인트 내역</h2>
-              <button 
-                onClick={() => setIsHistoryModalOpen(false)} 
-                className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground"
-              >
+              <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -633,7 +664,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
     </main>
   )
 }
