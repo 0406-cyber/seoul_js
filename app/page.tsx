@@ -21,7 +21,8 @@ import {
   getLeaderboardViaApi,
   savePointLog,
   getPointLogs,
-  getAllPointLogs // 구글 시트에서 전체 로그를 가져오는 함수
+  getAllPointLogs,
+  getSystemLogs // ✨ 시스템 로그 함수 추가
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -103,8 +104,9 @@ export default function Home() {
   const [pointHistory, setPointHistory] = useState<PointHistoryItem[]>([])
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  // 관리자 전용 상태
+  // ✨ 관리자 전용 상태 추가
   const [adminLogs, setAdminLogs] = useState<any[]>([])
+  const [sysLogs, setSysLogs] = useState<any[]>([]) // 시스템 로그 상태
   const [isAdminLogsLoading, setIsAdminLogsLoading] = useState(false)
 
   const recordPoint = useCallback(async (userName: string, desc: string, amt: number) => {
@@ -125,6 +127,7 @@ export default function Home() {
     }
   }, []);
 
+  // 일반 유저 데이터 동기화
   useEffect(() => {
     if (!nickname) return;
 
@@ -153,17 +156,30 @@ export default function Home() {
     syncWithServer();
   }, [nickname]);
 
-  // 관리자 인증 성공 시 전체 로그 로드
+  // ✨ 앱 최초 로드 시 사용자 몰래 백그라운드 시스템 로그 전송
+  useEffect(() => {
+    if (isOnboarded && nickname && nickname !== "admin") {
+      fetch('/api/syslog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: `접속 (${nickname})` })
+      }).catch(() => {});
+    }
+  }, [isOnboarded, nickname]);
+
+  // ✨ 관리자 인증 성공 시 포인트 로그와 시스템 로그를 동시에 로드
   useEffect(() => {
     if (nickname === "admin" && isAdminAuthenticated) {
       setIsAdminLogsLoading(true);
-      getAllPointLogs()
-        .then(logs => {
-          setAdminLogs(logs);
+      
+      Promise.all([getAllPointLogs(), getSystemLogs()])
+        .then(([pointLogsData, sysLogsData]) => {
+          setAdminLogs(pointLogsData);
+          setSysLogs(sysLogsData);
           setIsAdminLogsLoading(false);
         })
         .catch((e) => {
-          console.error("전체 로그 로딩 실패:", e);
+          console.error("로그 로딩 실패:", e);
           setIsAdminLogsLoading(false);
         });
     }
@@ -434,6 +450,7 @@ export default function Home() {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />
   }
 
+  // ✨ 관리자 전용 화면 렌더링
   if (nickname === "admin") {
     if (!isAdminAuthenticated) {
       return (
@@ -463,18 +480,19 @@ export default function Home() {
     }
 
     return (
-      <main className="min-h-screen bg-background p-4">
+      <main className="min-h-screen bg-background p-4 pb-12">
         <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
             <button 
               onClick={handleAdminLogout} 
-              className="text-sm bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-medium"
+              className="text-sm bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-medium hover:bg-secondary/80 transition-colors"
             >
               로그아웃
             </button>
           </div>
           
+          {/* 현황 카드 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
             <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
@@ -485,21 +503,72 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 전체 서버 로그 섹션 */}
+          {/* ✨ 시스템 접근 로그 테이블 (신규 추가) */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">📜 전체 활동 로그</h2>
+              <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
+              <span className="text-xs font-medium bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md">Cloudflare Edge Logs</span>
+            </div>
+            
+            <div className="bg-background rounded-xl border border-border overflow-hidden">
+              {isAdminLogsLoading ? (
+                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                  네트워크 로그를 분석 중입니다...
+                </div>
+              ) : sysLogs.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  수집된 시스템 로그가 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                        <th className="px-4 py-3 font-medium">활동</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">접속 IP</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">국가</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap text-right">디바이스</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border font-mono">
+                      {sysLogs.slice(0, 50).map((log) => (
+                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs font-sans">{log.date}</td>
+                          <td className="px-4 py-3 font-medium text-xs whitespace-nowrap">
+                            <span className="bg-secondary px-2 py-1 rounded text-foreground">{log.action}</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs tracking-wider">{log.ip}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {log.country === 'KR' ? '🇰🇷 KR' : `🌍 ${log.country}`}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-right whitespace-nowrap text-muted-foreground font-sans">
+                            {log.device}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 포인트 내역 로그 테이블 */}
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">📜 전체 포인트 활동 로그</h2>
               <span className="text-xs text-muted-foreground">최근 100건</span>
             </div>
             
             <div className="bg-background rounded-xl border border-border overflow-hidden">
               {isAdminLogsLoading ? (
                 <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
-                  서버에서 로그를 불러오는 중입니다...
+                  서버에서 활동 로그를 불러오는 중입니다...
                 </div>
               ) : adminLogs.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  기록된 로그가 없습니다.
+                  기록된 포인트 로그가 없습니다.
                 </div>
               ) : (
                 <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
@@ -540,6 +609,7 @@ export default function Home() {
     )
   }
 
+  // 일반 사용자 화면 렌더링
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
