@@ -126,6 +126,7 @@ export default function Home() {
     }
   }, []);
 
+  // 일반 유저 데이터 동기화
   useEffect(() => {
     if (!nickname) return;
 
@@ -212,6 +213,7 @@ export default function Home() {
       .map((user, index) => ({ ...user, rank: index + 1 }));
   }, [nickname, points, remoteUsers]);
     
+  // ✨ 온보딩 완료 처리: 기존 유저와 신규 유저를 명확히 구분
   const handleOnboardingComplete = useCallback(async (name: string) => {
     localStorage.setItem("eco_nickname", name);
     setNickname(name);
@@ -238,6 +240,16 @@ export default function Home() {
     
     setUsageHistory(loadUsageHistory(name));
   }, [recordPoint]);
+
+  // ✨ OnboardingScreen에 전달할 가입 여부 확인 함수
+  const checkIsExistingUser = useCallback(async (name: string) => {
+    try {
+      const remoteData = await getLeaderboardViaApi();
+      return remoteData.some(u => u.name === name);
+    } catch (e) {
+      return false; // 에러 시 신규 유저로 간주하여 절차 진행
+    }
+  }, []);
 
   const awardPoints = useCallback((delta: number, reason: string) => {
     setPoints((p) => p + delta);
@@ -442,10 +454,15 @@ export default function Home() {
     }
   }
 
+  // ✨ 온보딩 화면 호출 시 가입 여부 확인 함수 전달
   if (!isOnboarded) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />
+    return <OnboardingScreen 
+      onComplete={handleOnboardingComplete} 
+      checkIsExistingUser={checkIsExistingUser}
+    />
   }
 
+  // 관리자 전용 화면 렌더링
   if (nickname === "admin") {
     if (!isAdminAuthenticated) {
       return (
@@ -470,6 +487,7 @@ export default function Home() {
               >
                 인증하기
               </button>
+              {/* ✨ 이전으로 돌아가기(로그아웃) 버튼 추가 */}
               <button
                 onClick={handleLogout}
                 className="bg-secondary text-secondary-foreground font-bold rounded-xl p-3 hover:bg-secondary/80 transition w-full"
@@ -495,6 +513,7 @@ export default function Home() {
             </button>
           </div>
           
+          {/* 현황 카드 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
             <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
@@ -505,6 +524,7 @@ export default function Home() {
             </div>
           </div>
 
+          {/* 시스템 접근 로그 테이블 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
@@ -555,6 +575,7 @@ export default function Home() {
             </div>
           </div>
 
+          {/* 포인트 내역 로그 테이블 */}
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">📜 전체 포인트 활동 로그</h2>
@@ -609,6 +630,7 @@ export default function Home() {
     )
   }
 
+  // 일반 사용자 화면 렌더링
   return (
     <main className="min-h-screen bg-background relative">
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
