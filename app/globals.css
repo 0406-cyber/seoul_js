@@ -163,6 +163,32 @@
   }
   .eco-hop { animation: eco-hop 1.4s ease-in-out infinite; }
 
+  /* ✨ Modern Design Utilities */
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+
+  .glass-morphism {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .bento-item-large {
+    grid-column: span 2;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.5);
+  }
+
   .eco-building {
     width: 52px;
     border-radius: 18px 18px 8px 8px;

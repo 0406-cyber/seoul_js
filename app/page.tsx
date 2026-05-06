@@ -632,6 +632,22 @@ export default function Home() {
 
   // 일반 사용자 화면
   return (
+<<<<<<< HEAD
+    <main className="min-h-screen bg-background relative selection:bg-primary/30">
+      <header className="sticky top-4 z-40 mx-4">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto glass-card rounded-[2.5rem] px-6 py-4 border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-[1.25rem] bg-primary/20 flex items-center justify-center backdrop-blur-md shadow-inner">
+                <Leaf className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black text-foreground tracking-tight">{getTabTitle()}</h1>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Eco System Active</p>
+                </div>
+=======
     <main className="min-h-screen bg-background relative selection:bg-primary/30 overflow-hidden">
       
       {/* ✨ 리퀴드 글래스의 핵심: 배경 빛 번짐(Blob) 효과 */}
@@ -651,12 +667,22 @@ export default function Home() {
               <div>
                 <h1 className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">{getTabTitle()}</h1>
                 <p className="text-xs font-medium text-white/70 mt-0.5">탄소 절약 & AI 에너지 코칭</p>
+>>>>>>> 26cb3e58e653a05b9132959d8659f5c8893cbeba
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setIsHistoryModalOpen(true)}
+<<<<<<< HEAD
+                className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl pl-2 pr-4 py-2 hover:bg-white/10 transition-all group"
+                title="포인트 내역 보기"
+              >
+                <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center transition-transform group-hover:scale-110">
+                  <span className="text-sm font-black text-primary">{nickname?.charAt(0).toUpperCase()}</span>
+                </div>
+                <span className="text-sm font-black text-foreground tracking-tight">{points.toLocaleString()}P</span>
+=======
                 className="flex items-center gap-3 liquid-glass rounded-full px-4 py-2 hover:scale-105 active:scale-95"
                 title="포인트 내역 보기"
               >
@@ -664,14 +690,22 @@ export default function Home() {
                   <span className="text-xs font-bold text-[#0f1115]">{nickname?.charAt(0)}</span>
                 </div>
                 <span className="text-sm font-bold text-white drop-shadow-md">{points} P</span>
+>>>>>>> 26cb3e58e653a05b9132959d8659f5c8893cbeba
               </button>
 
               <button 
                 onClick={handleLogout}
+<<<<<<< HEAD
+                className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/5 rounded-2xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-all"
+                title="로그아웃"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+=======
                 className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/70 border border-transparent hover:border-white/10"
                 title="로그아웃"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+>>>>>>> 26cb3e58e653a05b9132959d8659f5c8893cbeba
               </button>
             </div>
           </div>
