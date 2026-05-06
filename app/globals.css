@@ -4,21 +4,20 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* 리퀴드 글래스 효과를 극대화하기 위해 배경을 깊은 네이비 톤으로 수정 */
-  --background: #0f1115;
+  --background: #121212;
   --foreground: #ffffff;
   --card: #1E1E1E;
   --card-foreground: #ffffff;
   --popover: #1E1E1E;
   --popover-foreground: #ffffff;
   --primary: #4ADE80;
-  --primary-foreground: #0f1115;
+  --primary-foreground: #121212;
   --secondary: #2C2C2E;
   --secondary-foreground: #ffffff;
-  --muted: #a1a1aa;
-  --muted-foreground: #a1a1aa;
+  --muted: #2C2C2E;
+  --muted-foreground: #9CA3AF;
   --accent: #4ADE80;
-  --accent-foreground: #0f1115;
+  --accent-foreground: #121212;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
   --border: #2C2C2E;
@@ -29,7 +28,7 @@
   --chart-3: #F59E0B;
   --chart-4: #EC4899;
   --chart-5: #8B5CF6;
-  --radius: 2rem; /* 물방울처럼 둥글게 */
+  --radius: 1.5rem;
   --sidebar: #1E1E1E;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #4ADE80;
@@ -41,7 +40,7 @@
 }
 
 .dark {
-  --background: #0f1115;
+  --background: #121212;
   --foreground: #ffffff;
   --card: #1E1E1E;
   --card-foreground: #ffffff;
@@ -51,8 +50,8 @@
   --primary-foreground: #121212;
   --secondary: #2C2C2E;
   --secondary-foreground: #ffffff;
-  --muted: #a1a1aa;
-  --muted-foreground: #a1a1aa;
+  --muted: #2C2C2E;
+  --muted-foreground: #9CA3AF;
   --accent: #4ADE80;
   --accent-foreground: #121212;
   --destructive: #EF4444;
@@ -126,42 +125,45 @@
 }
 
 @layer utilities {
-  /* ✨ 리퀴드 글래스 핵심 유틸리티 클래스 */
-  .liquid-glass {
-    @apply bg-white/5 backdrop-blur-3xl border border-white/20 relative overflow-hidden transition-all duration-500 hover:bg-white/10;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 8px 32px rgba(0, 0, 0, 0.3);
+  .eco-pop {
+    animation: eco-pop 480ms cubic-bezier(.2,.9,.2,1);
   }
-
-  /* 입력창 등 파인 질감 표현 */
-  .liquid-glass-inner {
-    @apply bg-black/30 backdrop-blur-md shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)] border border-white/5;
+  .eco-float {
+    animation: eco-float 3.2s ease-in-out infinite;
   }
-
-  /* 배경 광원 애니메이션 */
-  @keyframes blob-bounce {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
-  .animate-blob {
-    animation: blob-bounce 10s infinite alternate;
-  }
-  .animation-delay-2000 {
-    animation-delay: 2s;
-  }
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
-
-  /* 기존 에코 애니메이션 유지 */
-  .eco-pop { animation: eco-pop 480ms cubic-bezier(.2,.9,.2,1); }
-  .eco-float { animation: eco-float 3.2s ease-in-out infinite; }
   .eco-grow {
     transform-origin: bottom center;
     animation: eco-grow 700ms cubic-bezier(.2,.9,.2,1);
   }
-  .eco-hop { animation: eco-hop 1.4s ease-in-out infinite; }
+  .eco-hop {
+    animation: eco-hop 1.4s ease-in-out infinite;
+  }
+
+  /* ✨ Modern Design Utilities */
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+
+  .glass-morphism {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .bento-item-large {
+    grid-column: span 2;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.5);
+  }
 
   .eco-building {
     width: 52px;

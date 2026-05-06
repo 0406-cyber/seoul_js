@@ -87,7 +87,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("analysis")
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false)
   const [adminPassword, setAdminPassword] = useState("")
-
+  
   const [remoteUsers, setRemoteUsers] = useState<Omit<LeaderboardEntry, "rank">[]>([])
   const [electricityUsage, setElectricityUsage] = useState("")
   const [gasUsage, setGasUsage] = useState("")
@@ -126,6 +126,7 @@ export default function Home() {
     }
   }, []);
 
+  // 일반 유저 데이터 동기화
   useEffect(() => {
     if (!nickname) return;
 
@@ -135,7 +136,7 @@ export default function Home() {
       try {
         const remoteData = await getLeaderboardViaApi();
         setRemoteUsers(remoteData);
-
+        
         const myData = remoteData.find((u) => u.name === nickname);
         if (myData && myData.points >= 0) {
           setPoints(myData.points);
@@ -150,7 +151,7 @@ export default function Home() {
         console.error("서버 데이터 동기화 에러:", e.message);
       }
     };
-
+    
     syncWithServer();
   }, [nickname]);
 
@@ -167,7 +168,7 @@ export default function Home() {
   useEffect(() => {
     if (nickname === "admin" && isAdminAuthenticated) {
       setIsAdminLogsLoading(true);
-
+      
       Promise.all([getAllPointLogs(), getSystemLogs()])
         .then(([pointLogsData, sysLogsData]) => {
           setAdminLogs(pointLogsData);
@@ -194,7 +195,7 @@ export default function Home() {
       })),
     [usageHistory]
   )
-
+  
   const leaderboard: LeaderboardEntry[] = useMemo(() => {
     const currentUser: Omit<LeaderboardEntry, "rank"> = {
       id: "current",
@@ -206,21 +207,22 @@ export default function Home() {
 
     const otherUsers = remoteUsers.filter(user => user.name !== nickname);
     const allUsers = [...otherUsers, currentUser]; 
-
+    
     return allUsers
       .sort((a, b) => b.points - a.points)
       .map((user, index) => ({ ...user, rank: index + 1 }));
   }, [nickname, points, remoteUsers]);
-
+    
+  // ✨ 온보딩 완료 처리: 기존 유저와 신규 유저를 명확히 구분
   const handleOnboardingComplete = useCallback(async (name: string) => {
     localStorage.setItem("eco_nickname", name);
     setNickname(name);
     setIsOnboarded(true);
-
+  
     try {
       const remoteData = await getLeaderboardViaApi();
       const existingUser = remoteData.find(u => u.name === name);
-
+      
       if (existingUser) {
         setPoints(existingUser.points);
         toast.success(`${name}님, 다시 오신 것을 환영합니다!`);
@@ -229,22 +231,23 @@ export default function Home() {
         recordPoint(name, "신규 가입 보너스", 100);
         toast.success("가입을 축하합니다! 시작 포인트 100P가 지급되었습니다.");
       }
-
+      
       await loginUser(name);
     } catch (e: any) {
       console.error("로그인 동기화 에러:", e.message);
       setPoints(100); 
     }
-
+    
     setUsageHistory(loadUsageHistory(name));
   }, [recordPoint]);
 
+  // ✨ OnboardingScreen에 전달할 가입 여부 확인 함수
   const checkIsExistingUser = useCallback(async (name: string) => {
     try {
       const remoteData = await getLeaderboardViaApi();
       return remoteData.some(u => u.name === name);
     } catch (e) {
-      return false;
+      return false; // 에러 시 신규 유저로 간주하여 절차 진행
     }
   }, []);
 
@@ -288,14 +291,14 @@ export default function Home() {
     }
 
     setIsSavingUsage(true);
-
+    
     try {
       const electricity = parseFloat(electricityUsage) || 0
       const gas = parseFloat(gasUsage) || 0
-
+      
       const emission = await computeCo2Kg(electricity, gas)
       setCarbonEmission(emission)
-
+      
       const row: UsageRecord = {
         date: new Date().toISOString().slice(0, 10),
         elec_kwh: electricity,
@@ -307,7 +310,7 @@ export default function Home() {
 
       await saveUsage(nickname, electricity, gas, emission)
       toast.success("데이터가 성공적으로 기록되었습니다!")
-
+      
     } catch (e: any) {
       console.error("계산/저장 에러:", e.message);
       toast.error("서버 처리 중 에러가 발생했습니다: " + e.message);
@@ -451,6 +454,7 @@ export default function Home() {
     }
   }
 
+  // ✨ 온보딩 화면 호출 시 가입 여부 확인 함수 전달
   if (!isOnboarded) {
     return <OnboardingScreen 
       onComplete={handleOnboardingComplete} 
@@ -458,43 +462,38 @@ export default function Home() {
     />
   }
 
-  // 관리자 화면
+  // 관리자 전용 화면 렌더링
   if (nickname === "admin") {
     if (!isAdminAuthenticated) {
       return (
-        <main className="min-h-screen bg-background relative selection:bg-primary/30 overflow-hidden flex flex-col items-center justify-center p-4">
-          <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/20 blur-[120px] animate-blob mix-blend-screen"></div>
-            <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-blue-500/20 blur-[120px] animate-blob animation-delay-2000 mix-blend-screen"></div>
-          </div>
-          <div className="liquid-glass p-10 rounded-[2rem] w-full max-w-sm flex flex-col gap-8 shadow-2xl relative z-10">
-            <div className="text-center">
-              <h2 className="text-2xl font-extrabold text-white tracking-tight">🔒 관리자 인증</h2>
-              <p className="text-sm text-white/60 mt-2">안전한 접속을 위해 비밀번호를 입력해주세요.</p>
+        <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+          <div className="bg-card p-8 rounded-2xl border border-border w-full max-w-sm flex flex-col gap-6 shadow-lg">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">🔒 관리자 권한 인증</h2>
+              <p className="text-sm text-muted-foreground mt-2">대시보드에 접근하려면 비밀번호가 필요합니다.</p>
             </div>
-            <div className="space-y-4">
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="비밀번호 입력"
-                className="liquid-glass-inner text-white rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-primary w-full shadow-inner transition-all placeholder:text-white/30"
-                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-              />
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleAdminLogin}
-                  className="bg-primary text-[#0f1115] font-bold rounded-2xl p-4 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(74,222,128,0.3)] w-full"
-                >
-                  인증하기
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="bg-white/10 text-white font-bold rounded-2xl p-4 hover:bg-white/20 transition-all w-full border border-white/5"
-                >
-                  이전으로 돌아가기
-                </button>
-              </div>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="관리자 비밀번호 입력"
+              className="bg-background text-foreground border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary w-full"
+              onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+            />
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleAdminLogin}
+                className="bg-primary text-primary-foreground font-bold rounded-xl p-3 hover:bg-primary/90 transition w-full"
+              >
+                인증하기
+              </button>
+              {/* ✨ 이전으로 돌아가기(로그아웃) 버튼 추가 */}
+              <button
+                onClick={handleLogout}
+                className="bg-secondary text-secondary-foreground font-bold rounded-xl p-3 hover:bg-secondary/80 transition w-full"
+              >
+                이전으로 돌아가기
+              </button>
             </div>
           </div>
         </main>
@@ -502,127 +501,128 @@ export default function Home() {
     }
 
     return (
-      <main className="min-h-screen bg-background relative selection:bg-primary/30 overflow-hidden p-4 pb-12">
-        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/20 blur-[120px] animate-blob mix-blend-screen"></div>
-          <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-blue-500/20 blur-[120px] animate-blob animation-delay-2000 mix-blend-screen"></div>
-          <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[150px] animate-blob animation-delay-4000 mix-blend-screen"></div>
-        </div>
-
-        <div className="max-w-md md:max-w-4xl lg:max-w-6xl mx-auto flex flex-col gap-6 mt-8 px-4 relative z-10">
-          <div className="flex items-center justify-between liquid-glass p-6 rounded-[2rem] shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
-                <span className="text-2xl drop-shadow-md">🛠️</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-white">통합 관리자 대시보드</h1>
-                <p className="text-sm text-white/70 mt-1">시스템 전체 활동을 모니터링합니다.</p>
-              </div>
-            </div>
+      <main className="min-h-screen bg-background p-4 pb-12">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
             <button 
               onClick={handleAdminLogout} 
-              className="text-sm bg-white/10 text-white px-5 py-3 rounded-2xl font-bold hover:bg-white/20 transition-colors border border-white/5"
+              className="text-sm bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-medium hover:bg-secondary/80 transition-colors"
             >
               로그아웃
             </button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="liquid-glass p-6 rounded-[2rem] flex flex-col gap-4">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm border border-blue-500/30">🌐</span>
-                  시스템 접근 로그
-                </h2>
-                <span className="text-xs font-bold bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-xl border border-blue-500/30">Cloudflare Edge</span>
-              </div>
-
-              <div className="liquid-glass-inner rounded-[1.5rem] overflow-hidden">
-                {isAdminLogsLoading ? (
-                  <div className="p-8 text-center text-sm text-white/50 animate-pulse font-medium">
-                    네트워크 로그 분석 중...
-                  </div>
-                ) : sysLogs.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-white/50">
-                    수집된 시스템 로그가 없습니다.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-white/70 bg-black/40 sticky top-0 z-10 backdrop-blur-md">
-                        <tr>
-                          <th className="px-5 py-4 font-semibold whitespace-nowrap">시간</th>
-                          <th className="px-5 py-4 font-semibold">활동</th>
-                          <th className="px-5 py-4 font-semibold whitespace-nowrap">접속 IP</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 font-mono text-white/80">
-                        {sysLogs.slice(0, 50).map((log) => (
-                          <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-5 py-4 whitespace-nowrap text-xs font-sans">{log.date}</td>
-                            <td className="px-5 py-4 font-medium text-xs whitespace-nowrap">
-                              <span className="bg-white/10 px-2 py-1 rounded-lg border border-white/10">{log.action}</span>
-                            </td>
-                            <td className="px-5 py-4 text-xs">{log.ip}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="liquid-glass p-6 rounded-[2rem] flex flex-col gap-4">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm border border-primary/30">📜</span>
-                  포인트 활동 로그
-                </h2>
-                <span className="text-xs font-bold text-white/70 bg-white/10 px-3 py-1.5 rounded-xl border border-white/5">최근 100건</span>
-              </div>
-
-              <div className="liquid-glass-inner rounded-[1.5rem] overflow-hidden">
-                {isAdminLogsLoading ? (
-                  <div className="p-8 text-center text-sm text-white/50 animate-pulse font-medium">
-                    서버 활동 로그 동기화 중...
-                  </div>
-                ) : adminLogs.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-white/50">
-                    기록된 포인트 로그가 없습니다.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-white/70 bg-black/40 sticky top-0 z-10 backdrop-blur-md">
-                        <tr>
-                          <th className="px-5 py-4 font-semibold whitespace-nowrap">사용자</th>
-                          <th className="px-5 py-4 font-semibold">활동 내역</th>
-                          <th className="px-5 py-4 font-semibold text-right whitespace-nowrap">포인트</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-white/80">
-                        {adminLogs.slice(0, 100).map((log) => (
-                          <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-5 py-4 font-bold whitespace-nowrap text-white">{log.username}</td>
-                            <td className="px-5 py-4 text-xs">{log.description}</td>
-                            <td className={`px-5 py-4 text-right font-extrabold whitespace-nowrap ${log.amount > 0 ? 'text-primary' : 'text-red-400'}`}>
-                              {log.amount > 0 ? '+' : ''}{log.amount}P
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+          
+          {/* 현황 카드 */}
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+            <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
+            <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
+              <span className="text-sm text-muted-foreground">현재 활성 가입자 수</span>
+              <span className="text-lg font-bold text-foreground">
+                {leaderboard ? Math.max(0, leaderboard.length - 1) : 0} 명
+              </span>
             </div>
           </div>
 
-          <div className="bg-primary/10 p-6 rounded-[2rem] border border-primary/20 mt-4 backdrop-blur-md shadow-inner">
-            <p className="text-sm text-primary font-bold text-center">
-              ※ 전체 활성 가입자 수: {leaderboard ? Math.max(0, leaderboard.length - 1) : 0}명 (상세 데이터는 구글 시트 참조)
+          {/* 시스템 접근 로그 테이블 */}
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
+              <span className="text-xs font-medium bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md">Cloudflare Edge Logs</span>
+            </div>
+            
+            <div className="bg-background rounded-xl border border-border overflow-hidden">
+              {isAdminLogsLoading ? (
+                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                  네트워크 로그를 분석 중입니다...
+                </div>
+              ) : sysLogs.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  수집된 시스템 로그가 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                        <th className="px-4 py-3 font-medium">활동</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">접속 IP</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">국가</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap text-right">디바이스</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border font-mono">
+                      {sysLogs.slice(0, 50).map((log) => (
+                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs font-sans">{log.date}</td>
+                          <td className="px-4 py-3 font-medium text-xs whitespace-nowrap">
+                            <span className="bg-secondary px-2 py-1 rounded text-foreground">{log.action}</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs tracking-wider">{log.ip}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {log.country === 'KR' ? '🇰🇷 KR' : `🌍 ${log.country}`}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-right whitespace-nowrap text-muted-foreground font-sans">
+                            {log.device}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 포인트 내역 로그 테이블 */}
+          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">📜 전체 포인트 활동 로그</h2>
+              <span className="text-xs text-muted-foreground">최근 100건</span>
+            </div>
+            
+            <div className="bg-background rounded-xl border border-border overflow-hidden">
+              {isAdminLogsLoading ? (
+                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                  서버에서 활동 로그를 불러오는 중입니다...
+                </div>
+              ) : adminLogs.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  기록된 포인트 로그가 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">사용자</th>
+                        <th className="px-4 py-3 font-medium">활동 내역</th>
+                        <th className="px-4 py-3 font-medium text-right whitespace-nowrap">포인트</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {adminLogs.slice(0, 100).map((log) => (
+                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{log.date}</td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap">{log.username}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{log.description}</td>
+                          <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${log.amount > 0 ? 'text-primary' : 'text-red-500'}`}>
+                            {log.amount > 0 ? '+' : ''}{log.amount}P
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-primary/10 p-6 rounded-2xl border border-primary/20">
+            <p className="text-sm text-primary font-medium text-center">
+              ※ 전체 사용량 상세 데이터 및 이전 기록은 연동된 구글 시트에서 계속 관리하실 수 있습니다.
             </p>
           </div>
         </div>
@@ -630,55 +630,50 @@ export default function Home() {
     )
   }
 
-  // 일반 사용자 화면
+  // 일반 사용자 화면 렌더링
   return (
-    <main className="min-h-screen bg-background relative selection:bg-primary/30 overflow-hidden">
-      
-      {/* ✨ 리퀴드 글래스의 핵심: 배경 빛 번짐(Blob) 효과 */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/20 blur-[120px] animate-blob mix-blend-screen"></div>
-        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-blue-500/20 blur-[120px] animate-blob animation-delay-2000 mix-blend-screen"></div>
-        <div className="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[150px] animate-blob animation-delay-4000 mix-blend-screen"></div>
-      </div>
-
-      <header className="sticky top-0 z-40 bg-white/5 backdrop-blur-2xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
-        <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4 py-4 relative z-10">
+    <main className="min-h-screen bg-background relative selection:bg-primary/30">
+      <header className="sticky top-4 z-40 mx-4">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto glass-card rounded-[2.5rem] px-6 py-4 border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-[1.25rem] bg-white/10 border border-white/20 flex items-center justify-center shadow-inner">
-                <Leaf className="w-6 h-6 text-primary drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+              <div className="w-12 h-12 rounded-[1.25rem] bg-primary/20 flex items-center justify-center backdrop-blur-md shadow-inner">
+                <Leaf className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-extrabold text-white tracking-tight drop-shadow-md">{getTabTitle()}</h1>
-                <p className="text-xs font-medium text-white/70 mt-0.5">탄소 절약 & AI 에너지 코칭</p>
+                <h1 className="text-xl font-black text-foreground tracking-tight">{getTabTitle()}</h1>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Eco System Active</p>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setIsHistoryModalOpen(true)}
-                className="flex items-center gap-3 liquid-glass rounded-full px-4 py-2 hover:scale-105 active:scale-95"
+                className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl pl-2 pr-4 py-2 hover:bg-white/10 transition-all group"
                 title="포인트 내역 보기"
               >
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(74,222,128,0.4)]">
-                  <span className="text-xs font-bold text-[#0f1115]">{nickname?.charAt(0)}</span>
+                <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center transition-transform group-hover:scale-110">
+                  <span className="text-sm font-black text-primary">{nickname?.charAt(0).toUpperCase()}</span>
                 </div>
-                <span className="text-sm font-bold text-white drop-shadow-md">{points} P</span>
+                <span className="text-sm font-black text-foreground tracking-tight">{points.toLocaleString()}P</span>
               </button>
 
               <button 
                 onClick={handleLogout}
-                className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/70 border border-transparent hover:border-white/10"
+                className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/5 rounded-2xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-all"
                 title="로그아웃"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               </button>
             </div>
           </div>
         </div>
       </header>
-
-      <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4 py-8 relative z-10">
+      
+      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
             electricityUsage={electricityUsage}
@@ -731,35 +726,30 @@ export default function Home() {
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* 포인트 모달: 완전한 물방울 형태의 리퀴드 글래스 */}
       {isHistoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsHistoryModalOpen(false)}></div>
-          
-          <div className="liquid-glass w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[85vh] z-10 animate-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <h2 className="text-xl font-extrabold text-white">포인트 내역</h2>
-              <button onClick={() => setIsHistoryModalOpen(false)} className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-sm rounded-3xl shadow-xl flex flex-col max-h-[80vh] border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border bg-background">
+              <h2 className="text-lg font-bold text-foreground">포인트 내역</h2>
+              <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3 bg-background">
               {pointHistory.length === 0 ? (
-                <div className="text-center text-white/50 py-16 flex flex-col items-center gap-4">
-                  <div className="w-20 h-20 rounded-full liquid-glass-inner flex items-center justify-center">
-                    <span className="text-4xl drop-shadow-md">🫙</span>
-                  </div>
-                  <p className="font-medium">아직 적립된 포인트가 없습니다.</p>
+                <div className="text-center text-muted-foreground py-10 flex flex-col items-center gap-2">
+                  <span className="text-3xl">🫙</span>
+                  <p>아직 적립된 포인트가 없습니다.</p>
                 </div>
               ) : (
                 pointHistory.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-5 rounded-3xl liquid-glass-inner hover:bg-white/10 transition-colors">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-base font-bold text-white">{item.description}</span>
-                      <span className="text-xs font-medium text-white/50">{item.date}</span>
+                  <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-bold text-foreground">{item.description}</span>
+                      <span className="text-xs text-muted-foreground">{item.date}</span>
                     </div>
-                    <span className={`font-extrabold text-xl tracking-tight ${item.amount > 0 ? 'text-primary drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]' : 'text-red-400'}`}>
-                      {item.amount > 0 ? '+' : ''}{item.amount}
+                    <span className={`font-bold text-lg ${item.amount > 0 ? 'text-primary' : 'text-red-500'}`}>
+                      {item.amount > 0 ? '+' : ''}{item.amount}P
                     </span>
                   </div>
                 ))
