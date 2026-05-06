@@ -49,7 +49,7 @@ export function AnalysisTab({
           
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center backdrop-blur-md">
+              <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center shadow-inner">
                 <Leaf className="w-5 h-5 text-primary" />
               </div>
               <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Carbon Footprint</span>
@@ -87,12 +87,13 @@ export function AnalysisTab({
                 <Zap className="w-4 h-4 text-yellow-500" /> Electricity
               </label>
               <div className="relative group">
+                {/* 배경을 투명하게 하거나 라이트/다크모드 대응 */}
                 <input
                   type="number"
                   value={electricityUsage}
                   onChange={(e) => onElectricityChange(e.target.value)}
                   placeholder="0"
-                  className="w-full bg-white/5 rounded-2xl px-6 py-5 text-xl font-bold text-foreground placeholder:text-muted-foreground/30 border border-white/5 focus:border-primary/50 focus:bg-white/10 outline-none transition-all"
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-2xl px-6 py-5 text-xl font-bold text-foreground placeholder:text-muted-foreground/50 border border-black/10 dark:border-white/5 focus:border-primary/50 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all"
                 />
                 <span className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">kWh</span>
               </div>
@@ -108,7 +109,7 @@ export function AnalysisTab({
                   value={gasUsage}
                   onChange={(e) => onGasChange(e.target.value)}
                   placeholder="0"
-                  className="w-full bg-white/5 rounded-2xl px-6 py-5 text-xl font-bold text-foreground placeholder:text-muted-foreground/30 border border-white/5 focus:border-primary/50 focus:bg-white/10 outline-none transition-all"
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-2xl px-6 py-5 text-xl font-bold text-foreground placeholder:text-muted-foreground/50 border border-black/10 dark:border-white/5 focus:border-primary/50 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all"
                 />
                 <span className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">m³</span>
               </div>
@@ -140,8 +141,8 @@ export function AnalysisTab({
         <div className="h-72 w-full">
           {chartData.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-4">
-              <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
-                <BarChart3 className="w-8 h-8 opacity-20" />
+              <div className="w-16 h-16 rounded-3xl bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                <BarChart3 className="w-8 h-8 opacity-40" />
               </div>
               <p className="text-sm font-medium">표시할 데이터가 아직 없어요</p>
             </div>
@@ -168,17 +169,17 @@ export function AnalysisTab({
                   tickFormatter={(value) => `${value}kg`}
                 />
                 <Tooltip
-                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                  cursor={{ stroke: 'rgba(74,222,128,0.2)', strokeWidth: 2 }}
                   contentStyle={{
-                    backgroundColor: 'rgba(30, 30, 30, 0.9)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '20px',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--border)',
+                    borderRadius: '16px',
+                    color: 'var(--foreground)',
+                    boxShadow: '0 10px 30px var(--glass-shadow)',
                     padding: '12px 16px'
                   }}
                   itemStyle={{ color: '#4ADE80', fontWeight: 'bold' }}
-                  labelStyle={{ color: '#9CA3AF', marginBottom: '4px', fontSize: '12px' }}
+                  labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px', fontSize: '12px' }}
                 />
                 <Area
                   type="monotone"
@@ -187,7 +188,7 @@ export function AnalysisTab({
                   strokeWidth={4}
                   fill="url(#colorCarbon)"
                   animationDuration={1500}
-                  activeDot={{ r: 6, strokeWidth: 0, fill: '#ffffff' }}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#4ADE80' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
