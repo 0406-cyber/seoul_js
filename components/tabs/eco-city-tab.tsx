@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Building2, SunMedium, Zap, Droplets, Activity, Wind, LightbulbOff } from "lucide-react"
+import React, { useEffect, useMemo, useState } from "react"
+import { Building, Sun, Zap, Droplets, Activity, Wind, Lightbulb } from "lucide-react"
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
@@ -21,14 +21,14 @@ const STAGES: Stage[] = [
     minPoints: 0,
     label: "에너지 낭비 도심",
     subtitle: "노후화된 인프라 - 에너지 손실률 높음",
-    Icon: LightbulbOff,
+    Icon: Lightbulb,
   },
   {
     id: 1,
     minPoints: 200,
     label: "스마트 빌딩 리모델링",
     subtitle: "스마트 조명 및 고효율 창호 도입",
-    Icon: Building2,
+    Icon: Building,
   },
   {
     id: 2,
@@ -142,7 +142,7 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
                 </div>
                 {isGrid && (
                    <div className="bg-blue-950/60 border border-blue-500/30 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] text-blue-200 font-mono flex items-center gap-2 shadow-[0_0_10px_rgba(59,130,246,0.2)] animate-in slide-in-from-right-4">
-                     <SunMedium className="w-3 h-3 text-blue-400" />
+                     <Sun className="w-3 h-3 text-blue-400" />
                      SOLAR OUT: {Math.floor(points * 1.2)} kWh
                    </div>
                 )}
@@ -234,7 +234,7 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
       <div className="bg-card rounded-3xl p-6 border border-border space-y-4 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center">
-            <LightbulbOff className="w-3 h-3 text-muted-foreground" />
+            <Lightbulb className="w-3 h-3 text-muted-foreground" />
           </div>
           <h4 className="text-sm font-bold text-foreground">인프라 성장 힌트</h4>
         </div>
