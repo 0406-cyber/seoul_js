@@ -3,42 +3,53 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ✨ 라이트 모드 (기본 상태) */
 :root {
-  --background: #121212;
-  --foreground: #ffffff;
-  --card: #1E1E1E;
-  --card-foreground: #ffffff;
-  --popover: #1E1E1E;
-  --popover-foreground: #ffffff;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
   --primary: #4ADE80;
   --primary-foreground: #121212;
-  --secondary: #2C2C2E;
-  --secondary-foreground: #ffffff;
-  --muted: #2C2C2E;
-  --muted-foreground: #9CA3AF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
   --accent: #4ADE80;
   --accent-foreground: #121212;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --border: #2C2C2E;
-  --input: #2C2C2E;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
   --ring: #4ADE80;
+  
   --chart-1: #4ADE80;
   --chart-2: #22D3EE;
   --chart-3: #F59E0B;
   --chart-4: #EC4899;
   --chart-5: #8B5CF6;
+  
   --radius: 1.5rem;
-  --sidebar: #1E1E1E;
-  --sidebar-foreground: #ffffff;
+  
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
   --sidebar-primary: #4ADE80;
   --sidebar-primary-foreground: #121212;
-  --sidebar-accent: #2C2C2E;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2C2C2E;
+  --sidebar-accent: #E2E8F0;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
   --sidebar-ring: #4ADE80;
+
+  /* 글래스모피즘용 변수 추가 */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --glass-shadow: rgba(0, 0, 0, 0.05);
+  --glass-morphism-bg: rgba(255, 255, 255, 0.5);
 }
 
+/* 🌙 다크 모드 */
 .dark {
   --background: #121212;
   --foreground: #ffffff;
@@ -59,11 +70,13 @@
   --border: #2C2C2E;
   --input: #2C2C2E;
   --ring: #4ADE80;
+  
   --chart-1: #4ADE80;
   --chart-2: #22D3EE;
   --chart-3: #F59E0B;
   --chart-4: #EC4899;
   --chart-5: #8B5CF6;
+
   --sidebar: #1E1E1E;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #4ADE80;
@@ -72,6 +85,12 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #2C2C2E;
   --sidebar-ring: #4ADE80;
+
+  /* 글래스모피즘용 변수 추가 */
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: rgba(0, 0, 0, 0.37);
+  --glass-morphism-bg: rgba(255, 255, 255, 0.03);
 }
 
 @theme inline {
@@ -139,16 +158,20 @@
     animation: eco-hop 1.4s ease-in-out infinite;
   }
 
-  /* ✨ Modern Design Utilities */
+  /* ✨ Modern Design Utilities 수정됨 */
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 var(--glass-shadow);
   }
 
   .glass-morphism {
-    background: rgba(255, 255, 255, 0.03);
+    background-color: var(--glass-morphism-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
   }
 
   .bento-grid {
@@ -177,10 +200,17 @@
   .eco-building-tall { height: 120px; width: 60px; }
 
   .eco-building-bad {
+    background: linear-gradient(to top, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  }
+  .dark .eco-building-bad {
     background: linear-gradient(to top, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
     filter: saturate(0.2) brightness(0.9);
   }
+
   .eco-building-good {
+    background: linear-gradient(to top, rgba(74,222,128,0.3), rgba(0,0,0,0.05));
+  }
+  .dark .eco-building-good {
     background: linear-gradient(to top, rgba(74,222,128,0.18), rgba(255,255,255,0.05));
     filter: saturate(1.1) brightness(1.05);
   }
