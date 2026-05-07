@@ -1,10 +1,3 @@
-/**
- * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
- * + 진짜 에러 메시지 화면 출력 기능 추가
- * + 복사 에러 방지용 안전한 파싱 로직 적용 (문자열 자르기)
- */
-
-// 💡 Gemma 3 등 최신 모델을 지원하는 v1alpha 주소로 변경
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const GEMMA_MODELS = [
@@ -37,6 +30,11 @@ type GenerateContentResponse = {
   }>;
 };
 
+// 💡 시스템 명령(페르소나) 추가
+const SYSTEM_INSTRUCTION = `당신은 서울시 기획봉사단 'SEOUL EnerView'의 친절하고 전문적인 AI 에너지 코치입니다.
+절대 사고 과정(Thought Process)이나 내면의 생각, 영어 해석 과정을 사용자에게 보여주지 마십시오.
+어떤 질문이 오더라도 항상 부드럽고 긍정적인 '한국어'로만 최종 결과물만 바로 대답하십시오.`;
+
 export async function callTextApiWithFallback(
   prompt: string,
   models: string[] = GEMMA_MODELS
@@ -46,33 +44,50 @@ export async function callTextApiWithFallback(
 
   for (const model of models) {
     const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+    
+    // 💡 payload에 시스템 명령과 모델에게 줄 강력한 제약 조건을 포함합니다.
+    const payload = { 
+      system_instruction: {
+        parts: [{ text: SYSTEM_INSTRUCTION }]
+      },
+      contents: [{ 
+        role: "user",
+        parts: [{ text: prompt }] 
+      }],
+      generationConfig: {
+        temperature: 0.7, // 너무 창의적으로 나가는 것을 방지
+      }
+    };
 
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(120_000), 
       });
 
       if (response.status === 429) {
         lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
-        continue; // 다음 모델로 넘어감
+        continue;
       }
 
       if (!response.ok) {
         const errorText = await response.text();
         lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
-        continue; // 다음 모델로 넘어감
+        continue;
       }
 
       const result = (await response.json()) as GenerateContentResponse;
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      
+      // 💡 만약 모델이 말을 안 듣고 <think> 같은 태그로 생각을 적었을 경우를 대비해 필터링 (최후의 방어선)
+      text = text.replace(/<think>[\s\S]*?<\/think>\n*/g, "").trim();
+      
       if (text) return text;
     } catch (error: any) {
       lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
-      continue; // 다음 모델로 넘어감
+      continue;
     }
   }
 
@@ -89,7 +104,9 @@ export async function getGemmaAdvice(
 }
 
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-  return callTextApiWithFallback(userMessage, GEMMA_MODELS);
+  // 사용자의 메시지에 한 번 더 쐐기를 박습니다.
+  const fortifiedMessage = `[절대 사고 과정을 노출하지 말고, 최종 결과만 한국어로 짧고 친절하게 대답해라] ${userMessage}`;
+  return callTextApiWithFallback(fortifiedMessage, GEMMA_MODELS);
 }
 
 export type ImageAnalysisResult = {
@@ -102,7 +119,6 @@ function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
 
-  // 복사 시 에러가 나지 않도록 특수기호를 빼고 indexOf 방식 적용
   const startIdx = trimmed.indexOf("```");
   if (startIdx !== -1) {
     const endIdx = trimmed.lastIndexOf("```");
@@ -167,7 +183,7 @@ export async function analyzeImageWithGemini(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(120_000), 
       });
 
       if (response.status === 429) {
