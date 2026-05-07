@@ -46,7 +46,6 @@ export async function callTextApiWithFallback(prompt: string): Promise<string> {
         { role: "user", content: safePrompt }
       ],
       temperature: 0.0,
-      max_tokens: 1000,
     };
 
     const response = await fetch(GROQ_API_BASE, {
