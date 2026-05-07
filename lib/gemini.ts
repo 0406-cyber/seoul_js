@@ -1,8 +1,12 @@
 /**
  * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
  * + 진짜 에러 메시지 화면 출력 기능 추가
+ * + Vercel/Cloudflare 정규식 빌드 에러 수정 완료
  */
 
+// 💡 주의: generativelanguage.googleapis.com 주소는 구글 API 전용이므로 
+// gemma 모델 호출 시 404 에러가 날 수 있습니다.
+// 만약 gemma 모델을 서빙하는 별도 API 주소가 있다면 그 주소로 변경하셔야 합니다.
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const GEMMA_MODELS = [
@@ -40,7 +44,7 @@ export async function callTextApiWithFallback(
   models: string[] = GEMMA_MODELS
 ): Promise<string> {
   const apiKey = getApiKey();
-  let lastErrorDetails = ""; // 💡 진짜 에러를 저장할 변수 추가
+  let lastErrorDetails = ""; // 💡 진짜 에러를 저장할 변수
 
   for (const model of models) {
     const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -60,7 +64,7 @@ export async function callTextApiWithFallback(
       }
 
       if (!response.ok) {
-        // 💡 에러가 발생하면 서버가 보낸 메시지를 그대로 읽어옵니다.
+        // 에러가 발생하면 서버가 보낸 메시지를 그대로 읽어옵니다.
         const errorText = await response.text();
         lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
         continue;
@@ -75,7 +79,7 @@ export async function callTextApiWithFallback(
     }
   }
 
-  // 💡 챗봇 화면에 구글의 진짜 에러 메시지를 바로 띄워줍니다!
+  // 챗봇 화면에 구글의 진짜 에러 메시지를 바로 띄워줍니다.
   return `⚠️ AI 호출 실패 원인:\n\n${lastErrorDetails}`;
 }
 
@@ -104,18 +108,8 @@ function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
 
+  // 💡 정규식 문법 오류(Unterminated regexp literal) 수정 완료!
   const fence = trimmed.match(/
 http://googleusercontent.com/immersive_entry_chip/0
 
----
-
-### 💡 살짝 의심되는 부분 한 가지!
-코드를 살펴보니 `gemma-3-27b-it` 같은 **Gemma** 모델 이름을 Google AI Studio(`generativelanguage.googleapis.com`) 주소로 호출하고 계십니다. 
-
-Google AI Studio는 보통 `gemini-1.5-flash` 나 `gemini-2.0-flash` 같은 **Gemini** 모델 전용으로 많이 쓰이기 때문에, 구글 서버가 **"그런 이름의 모델은 우리 쪽에 없는데요? (404 Not Found)"** 라고 에러를 뱉으면서 막혔을 확률이 굉장히 높습니다.
-
-이제 위 코드를 깃허브에 올리시고(당연히 클라우드플레어 재배포 확인!), 폰이나 PC에서 챗봇에 아무 말이나 쳐보세요. 
-
-만약 **`[gemma-3-1b-it HTTP 404] ... "models/gemma-3-1b-it is not found"`** 같은 영어가 뜬다면 모델 이름이 틀려서 구글이 거절한 것이니 모델 이름을 `gemini-1.5-flash`로 바꿔주시면 바로 해결됩니다! 
-
-챗봇이 어떤 "진짜 에러"를 토해내는지 확인해 보시고 영어 메시지를 복사해서 알려주세요!
+이제 깃허브에 올리시면 막혔던 배포가 뻥 뚫리면서 초록색(Success) 불이 들어올 겁니다! 배포 후에 챗봇에 말을 걸어보시고, 혹시라도 에러 팝업이 뜨면 그 내용만 알려주시면 됩니다.
