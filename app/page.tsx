@@ -1,7 +1,8 @@
 "use client"
 
 export const runtime = "edge";
-import { useState, useCallback, useEffect, useMemo } from "react"
+import { useState, useCallback, useEffect, useMemo, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Leaf, X, Moon, Sun } from "lucide-react" 
 import { toast } from "sonner"
 import { useTheme } from "next-themes"
@@ -62,9 +63,18 @@ interface PointHistoryItem {
   amount: number;
 }
 
-export default function Home() {
+function MainContent() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+
+  // 1. URL 기반 라우팅 로직 추가
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get("tab") || "analysis"
+
+  const handleTabChange = (newTab: string) => {
+    router.push(`?tab=${newTab}`, { scroll: false })
+  }
 
   const [nickname, setNickname] = useState<string | null>(null)
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false)
@@ -80,7 +90,6 @@ export default function Home() {
     }
   }, [])
 
-  const [activeTab, setActiveTab] = useState("analysis")
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false)
   const [adminPassword, setAdminPassword] = useState("")
   
@@ -663,7 +672,6 @@ export default function Home() {
         </div>
       </header>
       
-      {/* 여기서부터 복구된 전체 탭 렌더링 영역입니다 */}
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
@@ -715,7 +723,7 @@ export default function Home() {
         )}
       </div>
 
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -750,5 +758,18 @@ export default function Home() {
         </div>
       )}
     </main>
+  )
+}
+
+// 2. Next.js App Router에서 useSearchParams를 사용하기 위해 Suspense로 감싸줍니다.
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <MainContent />
+    </Suspense>
   )
 }
