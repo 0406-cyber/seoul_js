@@ -1,6 +1,5 @@
 "use client"
 
-export const runtime = "edge";
 import { useState, useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Leaf, X, Moon, Sun } from "lucide-react" 
