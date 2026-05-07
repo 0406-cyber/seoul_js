@@ -5,7 +5,7 @@
  */
 
 // 💡 Gemma 3 등 최신 모델을 지원하는 v1alpha 주소로 변경
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1alpha/models";
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const GEMMA_MODELS = [
   "gemma-3-27b-it",
