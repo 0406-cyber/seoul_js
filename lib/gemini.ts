@@ -6,8 +6,7 @@
 const GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
-// 💡 올려주신 캡처 화면에 있는 Groq 지원 모델로 정확히 변경했습니다.
-const GROQ_MODEL = "llama-3.1-8b-instant"; 
+const GROQ_MODEL = "meta-llama/llama-prompt-guard-2-86m"; 
 
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
@@ -29,7 +28,6 @@ function getGroqApiKey(): string {
   if (!key) {
     throw new Error("NEXT_PUBLIC_GROQ_API_KEY가 설정되지 않았습니다. Cloudflare 환경 변수를 확인하세요.");
   }
-  // 💡 400 에러 방지용 공백 제거 로직 유지
   return key.trim(); 
 }
 
@@ -44,11 +42,10 @@ export async function callTextApiWithFallback(prompt: string): Promise<string> {
 
     const payload = {
       model: GROQ_MODEL,
-      // Prompt Guard 모델은 System 역할을 잘 인식하지 않으므로 User로만 전달합니다.
       messages: [
         { role: "user", content: safePrompt }
       ],
-      temperature: 0.0, // 일관된 판별을 위해 0으로 설정
+      temperature: 0.0,
       max_tokens: 100,
     };
 
@@ -58,6 +55,8 @@ export async function callTextApiWithFallback(prompt: string): Promise<string> {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      // 💡 바보같이 빼먹었던 핵심 데이터 본문(body)을 드디어 추가했습니다!!!
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15_000), 
     });
 
