@@ -1,12 +1,9 @@
 /**
  * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
- * + 진짜 에러 메시지 화면 출력 기능 추가
- * + Vercel/Cloudflare 정규식 빌드 에러 수정 완료
+ * + 에러 메시지 화면 출력 기능 추가
+ * + 복사 에러 방지용 안전한 파싱 로직 적용 (문자열 자르기)
  */
 
-// 💡 주의: generativelanguage.googleapis.com 주소는 구글 API 전용이므로 
-// gemma 모델 호출 시 404 에러가 날 수 있습니다.
-// 만약 gemma 모델을 서빙하는 별도 API 주소가 있다면 그 주소로 변경하셔야 합니다.
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const GEMMA_MODELS = [
@@ -26,9 +23,7 @@ const GEMINI_VISION_MODELS = [
 function getApiKey(): string {
   const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!key) {
-    throw new Error(
-      "NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다. .env.local을 확인하세요."
-    );
+    throw new Error("NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다.");
   }
   return key;
 }
@@ -44,7 +39,7 @@ export async function callTextApiWithFallback(
   models: string[] = GEMMA_MODELS
 ): Promise<string> {
   const apiKey = getApiKey();
-  let lastErrorDetails = ""; // 💡 진짜 에러를 저장할 변수
+  let lastErrorDetails = "";
 
   for (const model of models) {
     const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -64,7 +59,6 @@ export async function callTextApiWithFallback(
       }
 
       if (!response.ok) {
-        // 에러가 발생하면 서버가 보낸 메시지를 그대로 읽어옵니다.
         const errorText = await response.text();
         lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
         continue;
@@ -79,11 +73,9 @@ export async function callTextApiWithFallback(
     }
   }
 
-  // 챗봇 화면에 구글의 진짜 에러 메시지를 바로 띄워줍니다.
   return `⚠️ AI 호출 실패 원인:\n\n${lastErrorDetails}`;
 }
 
-/** app.py get_gemma_advice */
 export async function getGemmaAdvice(
   elec: number,
   gas: number,
@@ -93,7 +85,6 @@ export async function getGemmaAdvice(
   return callTextApiWithFallback(prompt, GEMMA_MODELS);
 }
 
-/** app.py ask_gemma_custom_question */
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
   return callTextApiWithFallback(userMessage, GEMMA_MODELS);
 }
@@ -108,8 +99,101 @@ function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
 
-  // 💡 정규식 문법 오류(Unterminated regexp literal) 수정 완료!
-  const fence = trimmed.match(/
-http://googleusercontent.com/immersive_entry_chip/0
+  // 복사 시 에러가 나지 않도록 특수기호를 빼고 indexOf 방식 적용
+  const startIdx = trimmed.indexOf("```");
+  if (startIdx !== -1) {
+    const endIdx = trimmed.lastIndexOf("```");
+    if (endIdx > startIdx) {
+      jsonStr = trimmed.substring(startIdx + 3, endIdx);
+      if (jsonStr.toLowerCase().startsWith("json")) {
+        jsonStr = jsonStr.substring(4);
+      }
+    }
+  }
 
-이제 깃허브에 올리시면 막혔던 배포가 뻥 뚫리면서 초록색(Success) 불이 들어올 겁니다! 배포 후에 챗봇에 말을 걸어보시고, 혹시라도 에러 팝업이 뜨면 그 내용만 알려주시면 됩니다.
+  const braceStart = jsonStr.indexOf("{");
+  const braceEnd = jsonStr.lastIndexOf("}");
+  if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
+    jsonStr = jsonStr.substring(braceStart, braceEnd + 1);
+  }
+
+  try {
+    return JSON.parse(jsonStr) as ImageAnalysisResult;
+  } catch {
+    return null;
+  }
+}
+
+export async function analyzeImageWithGemini(
+  dataUrl: string,
+  mimeTypeHint?: string
+): Promise<{ result: ImageAnalysisResult; error: string | null }> {
+  const apiKey = getApiKey();
+  let lastErrorDetails = ""; 
+
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    return { result: null, error: "이미지 데이터 형식이 올바르지 않습니다." };
+  }
+
+  const mimeType = mimeTypeHint || match[1] || "image/jpeg";
+  const encodedImage = match[2];
+
+  const prompt = `이 이미지를 분석해서 사용자가 '어떤 에너지 절약 행동'을 하고 있는지 파악해줘. 그리고 그 행동으로 인해 대략 몇 kWh의 전기를 절약했을지 추정해줘. (예: 전등 끄기 1시간 = 0.05kWh 소모 가정) 답변은 반드시 아래 JSON 형식으로만 해줘. 마크다운 기호 없이 순수 JSON 텍스트만 출력해. {"action_found": "true 또는 false", "description": "어떤 행동인지 한글 설명", "estimated_save_kwh": "추정 절약량 숫자만"}`;
+
+  for (const model of GEMINI_VISION_MODELS) {
+    const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: encodedImage,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (response.status === 429) {
+        lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
+        continue;
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
+        continue;
+      }
+
+      const resultData = (await response.json()) as GenerateContentResponse;
+      const resultText = resultData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (!resultText) continue;
+
+      const parsed = extractJsonObject(resultText);
+      if (parsed) {
+        return { result: parsed, error: null };
+      }
+    } catch (error: any) {
+      lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
+      continue;
+    }
+  }
+
+  return {
+    result: null,
+    error: `상세 에러: ${lastErrorDetails}`,
+  };
+}
