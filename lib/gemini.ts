@@ -1,15 +1,14 @@
 /**
- * 텍스트 챗봇: Groq API (Gemma 2 모델 - 초고속, 생각 노출 방지)
+ * 텍스트: Groq API (meta-llama/llama-prompt-guard-2-86m 적용)
  * 이미지 분석: Google AI Studio (기존 Gemini Vision 유지)
  */
 
 const GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
-// 텍스트용: Groq에서 지원하는 최신 Gemma 2 모델
-const GROQ_MODEL = "gemma2-9b-it"; 
+// 💡 올려주신 캡처 화면에 있는 Groq 지원 모델로 정확히 변경했습니다.
+const GROQ_MODEL = "meta-llama/llama-prompt-guard-2-86m"; 
 
-// 이미지용: 기존 구글 Gemini 모델 리스트 (그대로 유지)
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
   "gemini-2.5-flash",
@@ -22,7 +21,7 @@ function getGoogleApiKey(): string {
   if (!key) {
     throw new Error("NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다.");
   }
-  return key;
+  return key.trim(); 
 }
 
 function getGroqApiKey(): string {
@@ -30,28 +29,27 @@ function getGroqApiKey(): string {
   if (!key) {
     throw new Error("NEXT_PUBLIC_GROQ_API_KEY가 설정되지 않았습니다. Cloudflare 환경 변수를 확인하세요.");
   }
-  return key;
+  // 💡 400 에러 방지용 공백 제거 로직 유지
+  return key.trim(); 
 }
 
 // =====================================================================
-// 1. 텍스트 코칭 로직 (Groq 전용으로 교체됨)
+// 1. 텍스트 로직 (Groq - Prompt Guard 모델 적용)
 // =====================================================================
-
-const SYSTEM_INSTRUCTION = `당신은 서울시 기획봉사단 'SEOUL EnerView'의 친절하고 전문적인 AI 에너지 코치입니다.
-사고 과정이나 <think> 태그 같은 내면의 생각은 절대 노출하지 마십시오.
-어떤 질문이 오더라도 항상 부드럽고 긍정적인 '한국어'로만 짧고 명확하게 최종 대답만 하십시오.`;
 
 export async function callTextApiWithFallback(prompt: string): Promise<string> {
   try {
     const apiKey = getGroqApiKey();
+    const safePrompt = prompt ? prompt.trim() : "안녕하세요.";
+
     const payload = {
       model: GROQ_MODEL,
+      // Prompt Guard 모델은 System 역할을 잘 인식하지 않으므로 User로만 전달합니다.
       messages: [
-        { role: "system", content: SYSTEM_INSTRUCTION },
-        { role: "user", content: prompt }
+        { role: "user", content: safePrompt }
       ],
-      temperature: 0.7,
-      max_tokens: 1024,
+      temperature: 0.0, // 일관된 판별을 위해 0으로 설정
+      max_tokens: 100,
     };
 
     const response = await fetch(GROQ_API_BASE, {
@@ -60,7 +58,6 @@ export async function callTextApiWithFallback(prompt: string): Promise<string> {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      // Groq는 매우 빠르므로 타임아웃을 15초로 짧게 잡아도 충분합니다.
       signal: AbortSignal.timeout(15_000), 
     });
 
@@ -72,9 +69,7 @@ export async function callTextApiWithFallback(prompt: string): Promise<string> {
     const result = await response.json();
     let text = result.choices?.[0]?.message?.content || "응답을 생성하지 못했습니다.";
     
-    // 안전장치: 혹시라도 <think> 태그가 섞여 나오면 강제로 잘라냅니다.
-    text = text.replace(/<think>[\s\S]*?<\/think>\n*/g, "").trim();
-    return text;
+    return text.trim();
 
   } catch (error: any) {
     return `⚠️ 텍스트 AI 호출 실패:\n${error.message}`;
@@ -93,7 +88,6 @@ export async function getGemmaAdvice(
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
   return callTextApiWithFallback(userMessage);
 }
-
 
 // =====================================================================
 // 2. 이미지 분석 로직 (기존 구글 Gemini 원본 그대로 유지)
@@ -137,7 +131,7 @@ export async function analyzeImageWithGemini(
   dataUrl: string,
   mimeTypeHint?: string
 ): Promise<{ result: ImageAnalysisResult; error: string | null }> {
-  const apiKey = getGoogleApiKey(); // 여기서는 구글 키를 가져옵니다.
+  const apiKey = getGoogleApiKey(); 
   let lastErrorDetails = ""; 
 
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
