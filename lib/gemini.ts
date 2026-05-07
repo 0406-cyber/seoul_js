@@ -1,10 +1,11 @@
 /**
  * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
- * + 에러 메시지 화면 출력 기능 추가
+ * + 진짜 에러 메시지 화면 출력 기능 추가
  * + 복사 에러 방지용 안전한 파싱 로직 적용 (문자열 자르기)
  */
 
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+// 💡 Gemma 3 등 최신 모델을 지원하는 v1alpha 주소로 변경
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1alpha/models";
 
 const GEMMA_MODELS = [
   "gemma-3-27b-it",
@@ -55,13 +56,13 @@ export async function callTextApiWithFallback(
 
       if (response.status === 429) {
         lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
-        continue;
+        continue; // 다음 모델로 넘어감
       }
 
       if (!response.ok) {
         const errorText = await response.text();
         lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
-        continue;
+        continue; // 다음 모델로 넘어감
       }
 
       const result = (await response.json()) as GenerateContentResponse;
@@ -69,7 +70,7 @@ export async function callTextApiWithFallback(
       if (text) return text;
     } catch (error: any) {
       lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
-      continue;
+      continue; // 다음 모델로 넘어감
     }
   }
 
