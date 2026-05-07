@@ -1,5 +1,6 @@
 /**
  * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
+ * + 진짜 에러 메시지 화면 출력 기능 추가
  */
 
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -39,6 +40,7 @@ export async function callTextApiWithFallback(
   models: string[] = GEMMA_MODELS
 ): Promise<string> {
   const apiKey = getApiKey();
+  let lastErrorDetails = ""; // 💡 진짜 에러를 저장할 변수 추가
 
   for (const model of models) {
     const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -52,19 +54,29 @@ export async function callTextApiWithFallback(
         signal: AbortSignal.timeout(15_000),
       });
 
-      if (response.status === 429) continue;
+      if (response.status === 429) {
+        lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
+        continue;
+      }
 
-      if (!response.ok) continue;
+      if (!response.ok) {
+        // 💡 에러가 발생하면 서버가 보낸 메시지를 그대로 읽어옵니다.
+        const errorText = await response.text();
+        lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
+        continue;
+      }
 
       const result = (await response.json()) as GenerateContentResponse;
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return text;
-    } catch {
+    } catch (error: any) {
+      lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
       continue;
     }
   }
 
-  return "⚠️ 모든 텍스트 AI 모델 호출에 실패했습니다. API 키나 한도를 확인하세요.";
+  // 💡 챗봇 화면에 구글의 진짜 에러 메시지를 바로 띄워줍니다!
+  return `⚠️ AI 호출 실패 원인:\n\n${lastErrorDetails}`;
 }
 
 /** app.py get_gemma_advice */
@@ -92,96 +104,18 @@ function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
 
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) {
-    jsonStr = fence[1].trim();
-  }
+  const fence = trimmed.match(/
+http://googleusercontent.com/immersive_entry_chip/0
 
-  const brace = jsonStr.match(/\{[\s\S]*\}/);
-  if (brace) {
-    jsonStr = brace[0];
-  }
+---
 
-  try {
-    return JSON.parse(jsonStr) as ImageAnalysisResult;
-  } catch {
-    return null;
-  }
-}
+### 💡 살짝 의심되는 부분 한 가지!
+코드를 살펴보니 `gemma-3-27b-it` 같은 **Gemma** 모델 이름을 Google AI Studio(`generativelanguage.googleapis.com`) 주소로 호출하고 계십니다. 
 
-/** app.py analyze_image_with_gemini — dataUrl: data:image/jpeg;base64,... */
-export async function analyzeImageWithGemini(
-  dataUrl: string,
-  mimeTypeHint?: string
-): Promise<{ result: ImageAnalysisResult; error: string | null }> {
-  const apiKey = getApiKey();
+Google AI Studio는 보통 `gemini-1.5-flash` 나 `gemini-2.0-flash` 같은 **Gemini** 모델 전용으로 많이 쓰이기 때문에, 구글 서버가 **"그런 이름의 모델은 우리 쪽에 없는데요? (404 Not Found)"** 라고 에러를 뱉으면서 막혔을 확률이 굉장히 높습니다.
 
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) {
-    return { result: null, error: "이미지 데이터 형식이 올바르지 않습니다." };
-  }
+이제 위 코드를 깃허브에 올리시고(당연히 클라우드플레어 재배포 확인!), 폰이나 PC에서 챗봇에 아무 말이나 쳐보세요. 
 
-  const mimeType = mimeTypeHint || match[1] || "image/jpeg";
-  const encodedImage = match[2];
+만약 **`[gemma-3-1b-it HTTP 404] ... "models/gemma-3-1b-it is not found"`** 같은 영어가 뜬다면 모델 이름이 틀려서 구글이 거절한 것이니 모델 이름을 `gemini-1.5-flash`로 바꿔주시면 바로 해결됩니다! 
 
-  const prompt = `
-    이 이미지를 분석해서 사용자가 '어떤 에너지 절약 행동'을 하고 있는지 파악해줘.
-    그리고 그 행동으로 인해 대략 몇 kWh의 전기를 절약했을지 추정해줘. (예: 전등 끄기 1시간 = 0.05kWh 소모 가정)
-    답변은 반드시 아래 JSON 형식으로만 해줘. 마크다운 기호 없이 순수 JSON 텍스트만 출력해.
-
-    {
-      "action_found": "true 또는 false",
-      "description": "어떤 행동인지 한글 설명 (예: 빈 방 불 끄기)",
-      "estimated_save_kwh": "추정 절약량 숫자만 (예: 0.1)"
-    }
-    `;
-
-  for (const model of GEMINI_VISION_MODELS) {
-    const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const payload = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: encodedImage,
-              },
-            },
-          ],
-        },
-      ],
-    };
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30_000),
-      });
-
-      if (response.status === 429) continue;
-      if (!response.ok) continue;
-
-      const resultData = (await response.json()) as GenerateContentResponse;
-      const resultText =
-        resultData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (!resultText) continue;
-
-      const parsed = extractJsonObject(resultText);
-      if (parsed) {
-        return { result: parsed, error: null };
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return {
-    result: null,
-    error:
-      "⚠️ 모든 AI 모델 호출에 실패했습니다. API 연결 상태를 확인하세요.",
-  };
-}
+챗봇이 어떤 "진짜 에러"를 토해내는지 확인해 보시고 영어 메시지를 복사해서 알려주세요!
