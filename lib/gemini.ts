@@ -6,7 +6,7 @@
 const GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
-const GROQ_MODEL = "meta-llama/llama-prompt-guard-2-86m"; 
+const GROQ_MODEL = "llama-3.1-8b-instant"; 
 
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
