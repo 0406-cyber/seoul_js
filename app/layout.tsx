@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import Script from 'next/script' // ✨ 구글 애널리틱스를 위한 Script 컴포넌트 추가
 import './globals.css'
+import { ThemeProvider } from "@/components/theme-provider"
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -48,9 +49,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko">
-      <body className="font-sans antialiased bg-background text-foreground">
-        
+<html lang="ko" suppressHydrationWarning>
+      <body className="font-sans antialiased bg-background text-foreground">       
         {/* ✨ 구글 애널리틱스 (Google Analytics) 태그 시작 */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-HKH246CX9C"
@@ -64,10 +64,15 @@ export default function RootLayout({
             gtag('config', 'G-HKH246CX9C');
           `}
         </Script>
-        {/* ✨ 구글 애널리틱스 (Google Analytics) 태그 끝 */}
-
-        {children}
-        <Toaster richColors position="top-center" />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster richColors position="top-center" />
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>
