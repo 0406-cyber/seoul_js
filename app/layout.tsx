@@ -13,8 +13,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: '서울기획봉사단',
-  description: '전기와 가스 사용량을 분석하고 AI 쳇봇을 통해 탄소 배출을 줄여보세요',
+  title: 'Enerview',
+  description: '에너지 사용량을 분석하고 AI 쳇봇을 통해 탄소 배출을 줄여보세요',
   generator: 'v0.app',
   icons: {
     icon: [
