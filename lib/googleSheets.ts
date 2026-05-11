@@ -472,6 +472,83 @@ export async function getAllPointLogs(): Promise<any[]> {
     return [];
   }
 }
+
+/** 상품 교환 주문 저장 (orders 탭) */
+export async function saveOrder(username: string, order: any): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("orders!A:G");
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
+
+  const values = [[
+    order.id,
+    username,
+    order.itemId,
+    order.itemName,
+    String(order.cost),
+    new Date(order.requestedAt).toLocaleString("ko-KR"),
+    order.status
+  ]];
+
+  await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+}
+
+/** 전체 상품 교환 주문 불러오기 (Admin 용) */
+export async function getAllOrders(): Promise<any[]> {
+  try {
+    const { token, spreadsheetId } = await getAccessToken();
+    const range = encodeURIComponent("orders!A:G");
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+    const data = await res.json();
+    const rows = data.values || [];
+    if (rows.length <= 1) return [];
+
+    return rows.slice(1)
+      .map((row: any, index: number) => ({
+        id: row[0] || "",
+        username: row[1] || "",
+        itemId: row[2] || "",
+        itemName: row[3] || "",
+        cost: parseInt(row[4], 10) || 0,
+        requestedAt: row[5] || "",
+        status: row[6] || "requested"
+      })).reverse(); // 최신순 정렬
+  } catch (e) {
+    return [];
+  }
+}
+
+/** 상품 교환 주문 상태 업데이트 (orders 탭) */
+export async function updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("orders!A:G");
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+  const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+  const data = await getRes.json();
+  const rows = data.values || [];
+
+  let rowIndex = -1;
+  for(let i = 0; i < rows.length; i++) {
+    if(rows[i][0] === orderId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex !== -1) {
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/orders!G${rowIndex}?valueInputOption=USER_ENTERED`;
+    await fetch(updateUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[newStatus]] })
+    });
+  }
+}
 /** 시스템 로그 기록 (server_logs 탭) */
 export async function saveSystemLog(action: string, ip: string, country: string, userAgent: string): Promise<void> {
   try {

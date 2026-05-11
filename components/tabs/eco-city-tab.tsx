@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner"
 import { SHOP_ITEMS } from "@/lib/shop"
 import { addOrder, loadOrders, type RedeemOrder } from "@/lib/shop-storage"
+import { saveOrder } from "@/lib/googleSheets"
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
@@ -389,9 +390,14 @@ export function EcoCityTab({
                     Promise.resolve(
                       onSpendPoints(it.cost, `굿즈 교환 요청: ${it.name}`)
                     )
-                      .then(() => {
+                      .then(async () => {
                         const next = addOrder(nickname, order)
                         setOrders(next)
+                        try {
+                          await saveOrder(nickname, order)
+                        } catch (e) {
+                          console.error("주문 서버 저장 실패:", e)
+                        }
                         toast.success("교환 요청이 접수되었습니다.")
                       })
                       .catch((e: any) => {

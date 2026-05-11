@@ -24,7 +24,9 @@ import {
   savePointLog,
   getPointLogs,
   getAllPointLogs,
-  getSystemLogs
+  getSystemLogs,
+  getAllOrders,
+  updateOrderStatus
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -114,6 +116,9 @@ function MainContent() {
   const [sysLogs, setSysLogs] = useState<any[]>([])
   const [isAdminLogsLoading, setIsAdminLogsLoading] = useState(false)
 
+  const [adminOrders, setAdminOrders] = useState<any[]>([])
+  const [isAdminOrdersLoading, setIsAdminOrdersLoading] = useState(false)
+
   const recordPoint = useCallback(async (userName: string, desc: string, amt: number) => {
     setPointHistory(prev => {
       const newItem: PointHistoryItem = {
@@ -174,10 +179,11 @@ function MainContent() {
     if (nickname === "admin" && isAdminAuthenticated) {
       setIsAdminLogsLoading(true);
       
-      Promise.all([getAllPointLogs(), getSystemLogs()])
-        .then(([pointLogsData, sysLogsData]) => {
+      Promise.all([getAllPointLogs(), getSystemLogs(), getAllOrders()])
+        .then(([pointLogsData, sysLogsData, ordersData]) => {
           setAdminLogs(pointLogsData);
           setSysLogs(sysLogsData);
+          setAdminOrders(ordersData);
           setIsAdminLogsLoading(false);
         })
         .catch((e) => {
@@ -600,38 +606,88 @@ function MainContent() {
 
           <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">📜 전체 포인트 활동 로그</h2>
+              <h2 className="text-lg font-bold text-foreground">� 상품 교환 주문 관리</h2>
               <span className="text-xs text-muted-foreground">최근 100건</span>
             </div>
             
             <div className="bg-background rounded-xl border border-border overflow-hidden">
               {isAdminLogsLoading ? (
                 <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
-                  서버에서 활동 로그를 불러오는 중입니다...
+                  주문 데이터를 불러오는 중입니다...
                 </div>
-              ) : adminLogs.length === 0 ? (
+              ) : adminOrders.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  기록된 포인트 로그가 없습니다.
+                  접수된 상품 교환 주문이 없습니다.
                 </div>
               ) : (
                 <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
                       <tr>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                        <th className="px-4 py-3 font-medium whitespace-nowrap">요청 시간</th>
                         <th className="px-4 py-3 font-medium whitespace-nowrap">사용자</th>
-                        <th className="px-4 py-3 font-medium">활동 내역</th>
+                        <th className="px-4 py-3 font-medium">상품명</th>
                         <th className="px-4 py-3 font-medium text-right whitespace-nowrap">포인트</th>
+                        <th className="px-4 py-3 font-medium text-center whitespace-nowrap">상태</th>
+                        <th className="px-4 py-3 font-medium text-center whitespace-nowrap">액션</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {adminLogs.slice(0, 100).map((log) => (
-                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{log.date}</td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap">{log.username}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{log.description}</td>
-                          <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${log.amount > 0 ? 'text-primary' : 'text-red-500'}`}>
-                            {log.amount > 0 ? '+' : ''}{log.amount}P
+                      {adminOrders.slice(0, 100).map((order) => (
+                        <tr key={order.id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{order.requestedAt}</td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap">{order.username}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{order.itemName}</td>
+                          <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-primary">
+                            {order.cost}P
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              order.status === 'fulfilled' ? 'bg-green-500/10 text-green-500' :
+                              order.status === 'cancelled' ? 'bg-red-500/10 text-red-500' :
+                              'bg-yellow-500/10 text-yellow-500'
+                            }`}>
+                              {order.status === 'fulfilled' ? '완료' :
+                               order.status === 'cancelled' ? '취소' : '요청'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            {order.status === 'requested' && (
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await updateOrderStatus(order.id, 'fulfilled');
+                                      setAdminOrders(prev => prev.map(o => 
+                                        o.id === order.id ? { ...o, status: 'fulfilled' } : o
+                                      ));
+                                      toast.success("주문이 완료 처리되었습니다.");
+                                    } catch (e) {
+                                      toast.error("상태 업데이트 실패");
+                                    }
+                                  }}
+                                  className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+                                >
+                                  완료
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await updateOrderStatus(order.id, 'cancelled');
+                                      setAdminOrders(prev => prev.map(o => 
+                                        o.id === order.id ? { ...o, status: 'cancelled' } : o
+                                      ));
+                                      toast.success("주문이 취소 처리되었습니다.");
+                                    } catch (e) {
+                                      toast.error("상태 업데이트 실패");
+                                    }
+                                  }}
+                                  className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
