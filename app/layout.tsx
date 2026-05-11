@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import Script from 'next/script' // ✨ 구글 애널리틱스를 위한 Script 컴포넌트 추가
 import './globals.css'
