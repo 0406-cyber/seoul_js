@@ -14,6 +14,7 @@ import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
 import { EcoCityTab } from "@/components/tabs/eco-city-tab"
 import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
+import { DailyMissionsCard } from "@/components/daily-missions-card"
 import {
   computeCo2Kg,
   saveUsage,
@@ -259,6 +260,37 @@ function MainContent() {
       recordPoint(nickname, reason, delta);
     }
   }, [nickname, recordPoint])
+
+  const grantPoints = useCallback(
+    async (delta: number, reason: string) => {
+      if (!nickname) return
+      setPoints((p) => p + delta)
+      recordPoint(nickname, reason, delta)
+      try {
+        await updateUserPoints(nickname, delta)
+      } catch {
+        // best effort (offline/local-first)
+      }
+    },
+    [nickname, recordPoint]
+  )
+
+  const spendPoints = useCallback(
+    async (cost: number, reason: string) => {
+      if (!nickname) return
+      setPoints((p) => {
+        if (p < cost) throw new Error("포인트가 부족합니다.")
+        return p - cost
+      })
+      recordPoint(nickname, reason, -cost)
+      try {
+        await updateUserPoints(nickname, -cost)
+      } catch {
+        // best effort
+      }
+    },
+    [nickname, recordPoint]
+  )
 
   const handleAdminLogin = useCallback(() => {
     if (adminPassword === process.env.NEXT_PUBLIC_ADMIN_PASSWORD || adminPassword === "seoul1234") {
@@ -615,6 +647,9 @@ function MainContent() {
     )
   }
 
+  const todayYmd = new Date().toISOString().slice(0, 10)
+  const hasUsageToday = usageHistory.some((u) => u.date === todayYmd)
+
   return (
     <AppShell>
       <AppHeader
@@ -629,6 +664,13 @@ function MainContent() {
       />
 
       <AppContainer className="py-6">
+        <DailyMissionsCard
+          nickname={nickname ?? "user"}
+          points={points}
+          hasUsageToday={hasUsageToday}
+          onGrantPoints={grantPoints}
+        />
+
         {activeTab === "analysis" && (
           <AnalysisTab
             electricityUsage={electricityUsage}
@@ -664,7 +706,7 @@ function MainContent() {
         )}
 
         {activeTab === "ecoCity" && nickname && (
-          <EcoCityTab nickname={nickname} points={points} />
+          <EcoCityTab nickname={nickname} points={points} onSpendPoints={spendPoints} />
         )}
 
         {activeTab === "feed" && nickname && (
