@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Leaf, X, Moon, Sun } from "lucide-react" 
+import { Moon, Sun } from "lucide-react"
 import { toast } from "sonner"
 import { useTheme } from "next-themes"
 import { BottomNav } from "@/components/bottom-nav"
@@ -32,6 +32,14 @@ import {
 } from "@/lib/gemini"
 import { loadUsageHistory, appendUsageLocal, type UsageRecord } from "@/lib/usage-storage"
 import { loadPoints, savePoints } from "@/lib/points-storage"
+import { AppShell } from "@/components/app/app-shell"
+import { AppContainer } from "@/components/app/app-container"
+import { AppHeader } from "@/components/app/app-header"
+import {
+  PointHistoryModal,
+  type PointHistoryItem,
+} from "@/components/app/point-history-modal"
+import { getTabMeta } from "@/lib/tab-meta"
 
 interface Message {
   id: string
@@ -53,13 +61,6 @@ interface LeaderboardEntry {
   points: number
   carbonSaved: number
   streak: number
-}
-
-interface PointHistoryItem {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
 }
 
 function MainContent() {
@@ -442,18 +443,7 @@ function MainContent() {
     }
   }, [nickname, selectedImage, recordPoint])
 
-  const getTabTitle = () => {
-    switch (activeTab) {
-      case "analysis": return "탄소 분석"
-      case "water": return "물 발자국"
-      case "coaching": return "AI 코칭"
-      case "certification": return "친환경 인증"
-      case "ecoCity": return "에코 인프라"
-      case "feed": return "시민 기자단"
-      case "leaderboard": return "리더보드"
-      default: return "Unknown"
-    }
-  }
+  const tabMeta = getTabMeta(activeTab)
 
   if (!mounted) return null;
 
@@ -467,8 +457,9 @@ function MainContent() {
   if (nickname === "admin") {
     if (!isAdminAuthenticated) {
       return (
-        <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-          <div className="bg-card p-8 rounded-2xl border border-border w-full max-w-sm flex flex-col gap-6 shadow-lg">
+        <AppShell>
+          <div className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="bg-card p-8 rounded-2xl border border-border w-full max-w-sm flex flex-col gap-6 shadow-lg">
             <div>
               <h2 className="text-xl font-bold text-foreground">🔒 관리자 권한 인증</h2>
               <p className="text-sm text-muted-foreground mt-2">대시보드에 접근하려면 비밀번호가 필요합니다.</p>
@@ -496,13 +487,15 @@ function MainContent() {
               </button>
             </div>
           </div>
-        </main>
+          </div>
+        </AppShell>
       )
     }
 
     return (
-      <main className="min-h-screen bg-background p-4 pb-12">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex flex-col gap-6 mt-8 px-4">
+      <AppShell>
+        <AppContainer className="pt-8 pb-12">
+          <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
             <div className="flex gap-2">
@@ -616,62 +609,26 @@ function MainContent() {
               )}
             </div>
           </div>
-        </div>
-      </main>
+          </div>
+        </AppContainer>
+      </AppShell>
     )
   }
 
   return (
-    <main className="min-h-screen bg-background relative selection:bg-primary/30 transition-colors duration-300">
-      <header className="sticky top-4 z-40 mx-4">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto glass-card rounded-[2.5rem] px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-[1.25rem] bg-primary/20 flex items-center justify-center shadow-inner">
-                <Leaf className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black text-foreground tracking-tight">{getTabTitle()}</h1>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Eco System Active</p>
-                </div>
-              </div>
-            </div>
+    <AppShell>
+      <AppHeader
+        title={tabMeta.title}
+        subtitle={tabMeta.subtitle}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        nickname={nickname}
+        points={points}
+        onOpenPoints={() => setIsHistoryModalOpen(true)}
+        onLogout={handleLogout}
+      />
 
-            <div className="flex items-center gap-2 md:gap-3">
-              <button 
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-10 h-10 flex items-center justify-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-muted-foreground hover:text-foreground transition-all"
-                title="테마 변경"
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-
-              <button 
-                onClick={() => setIsHistoryModalOpen(true)}
-                className="flex items-center gap-2 md:gap-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl pl-2 pr-4 py-2 transition-all group"
-                title="포인트 내역 보기"
-              >
-                <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center transition-transform group-hover:scale-110">
-                  <span className="text-sm font-black text-primary">{nickname?.charAt(0).toUpperCase()}</span>
-                </div>
-                <span className="text-sm font-black text-foreground tracking-tight">{points.toLocaleString()}P</span>
-              </button>
-
-              <button 
-                onClick={handleLogout}
-                className="w-10 h-10 hidden md:flex items-center justify-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
-                title="로그아웃"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-      
-      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 py-6">
+      <AppContainer className="py-6">
         {activeTab === "analysis" && (
           <AnalysisTab
             electricityUsage={electricityUsage}
@@ -720,43 +677,16 @@ function MainContent() {
         {activeTab === "leaderboard" && (
           <LeaderboardTab entries={leaderboard} currentUserId="current" />
         )}
-      </div>
+      </AppContainer>
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
-      {isHistoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-sm rounded-3xl shadow-xl flex flex-col max-h-[80vh] border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-5 border-b border-border bg-background">
-              <h2 className="text-lg font-bold text-foreground">포인트 내역</h2>
-              <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3 bg-background">
-              {pointHistory.length === 0 ? (
-                <div className="text-center text-muted-foreground py-10 flex flex-col items-center gap-2">
-                  <span className="text-3xl">🫙</span>
-                  <p>아직 적립된 포인트가 없습니다.</p>
-                </div>
-              ) : (
-                pointHistory.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-bold text-foreground">{item.description}</span>
-                      <span className="text-xs text-muted-foreground">{item.date}</span>
-                    </div>
-                    <span className={`font-bold text-lg ${item.amount > 0 ? 'text-primary' : 'text-red-500'}`}>
-                      {item.amount > 0 ? '+' : ''}{item.amount}P
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
+      <PointHistoryModal
+        open={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        items={pointHistory}
+      />
+    </AppShell>
   )
 }
 

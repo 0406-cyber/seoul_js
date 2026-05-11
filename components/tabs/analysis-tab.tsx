@@ -1,7 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { Zap, Flame, Leaf, TrendingDown, History, Info, BarChart3 } from "lucide-react"
+import { useMemo, useState } from "react"
+import {
+  Zap,
+  Flame,
+  Leaf,
+  TrendingDown,
+  TrendingUp,
+  History,
+  Info,
+  BarChart3,
+  CalendarDays,
+} from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 
 interface AnalysisTabProps {
@@ -27,6 +37,22 @@ export function AnalysisTab({
 }: AnalysisTabProps) {
   const [isCalculating, setIsCalculating] = useState(false)
 
+  const stats = useMemo(() => {
+    const last = chartData.at(-1)?.carbon ?? null
+    const prev = chartData.at(-2)?.carbon ?? null
+    const delta = last !== null && prev !== null ? last - prev : null
+    const deltaPct =
+      last !== null && prev !== null && prev !== 0 ? (delta / prev) * 100 : null
+
+    const last30 = chartData.slice(Math.max(0, chartData.length - 30))
+    const avg30 =
+      last30.length > 0
+        ? last30.reduce((acc, d) => acc + d.carbon, 0) / last30.length
+        : null
+
+    return { last, prev, delta, deltaPct, avg30, count: chartData.length }
+  }, [chartData])
+
   const handleCalculate = async () => {
     setIsCalculating(true)
     try {
@@ -38,6 +64,76 @@ export function AnalysisTab({
 
   return (
     <div className="space-y-6 pb-28">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center">
+              <Leaf className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">최근 배출량</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {stats.last !== null ? `${stats.last.toFixed(1)}kg` : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+              <CalendarDays className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">최근 30회 평균</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {stats.avg30 !== null ? `${stats.avg30.toFixed(1)}kg` : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+              {stats.delta !== null && stats.delta <= 0 ? (
+                <TrendingDown className="w-4 h-4 text-primary" />
+              ) : (
+                <TrendingUp className="w-4 h-4 text-orange-500" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">직전 대비</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {stats.delta === null ? (
+                  "—"
+                ) : (
+                  <>
+                    {stats.delta > 0 ? "+" : ""}
+                    {stats.delta.toFixed(1)}kg
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">기록 횟수</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {stats.count.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Bento Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         
@@ -66,9 +162,13 @@ export function AnalysisTab({
               <div className="mt-8 flex items-center gap-4">
                 <div className="px-4 py-2 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-2">
                   <TrendingDown className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-bold text-primary">-12.4%</span>
+                  <span className="text-sm font-bold text-primary">
+                    {stats.deltaPct === null
+                      ? "—"
+                      : `${stats.deltaPct > 0 ? "+" : ""}${stats.deltaPct.toFixed(1)}%`}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground">vs. last month</span>
+                <span className="text-xs text-muted-foreground">직전 기록 대비</span>
               </div>
             )}
           </div>
@@ -134,8 +234,15 @@ export function AnalysisTab({
 
       {/* Chart Section */}
       <div className="glass-card rounded-[2.5rem] p-8">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-xl font-bold text-foreground">배출량 히스토리</h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h3 className="text-xl font-bold text-foreground">배출량 히스토리</h3>
+            {stats.count > 0 && (
+              <span className="text-xs font-bold text-muted-foreground bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-2 py-1 rounded-full">
+                최근 {stats.count}회
+              </span>
+            )}
+          </div>
           <History className="w-5 h-5 text-muted-foreground" />
         </div>
         <div className="h-72 w-full">
@@ -145,6 +252,9 @@ export function AnalysisTab({
                 <BarChart3 className="w-8 h-8 opacity-40" />
               </div>
               <p className="text-sm font-medium">표시할 데이터가 아직 없어요</p>
+              <p className="text-xs text-muted-foreground">
+                위에서 전기/가스 사용량을 입력하고 기록하면 그래프가 채워져요.
+              </p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

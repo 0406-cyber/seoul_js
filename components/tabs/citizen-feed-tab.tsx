@@ -3,7 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 // ⭐️ 아이콘에 수정(Pencil), 삭제(Trash2) 추가
-import { Heart, ImagePlus, Crown, Send, X, Pencil, Trash2 } from "lucide-react"
+import {
+  Heart,
+  ImagePlus,
+  Crown,
+  Send,
+  X,
+  Pencil,
+  Trash2,
+  BarChart3,
+  CalendarDays,
+  TrendingUp,
+} from "lucide-react"
 import {
   CitizenPost,
   loadClaims,
@@ -75,6 +86,25 @@ export function CitizenFeedTab({
 
     return { week, weekPosts, ranked, top, claimedBy }
   }, [posts])
+
+  const kpis = useMemo(() => {
+    const weekPosts = stats.weekPosts
+    const myPosts = weekPosts.filter((p) => p.author === nickname)
+
+    let myLikesReceived = 0
+    for (const p of weekPosts) {
+      if (p.author !== nickname) continue
+      myLikesReceived += p.likedBy?.length ?? 0
+    }
+
+    const bestLabel = stats.top ? `${stats.top.author} (${stats.top.likes})` : "—"
+    return {
+      weekPostCount: weekPosts.length,
+      myPostCount: myPosts.length,
+      myLikesReceived,
+      bestLabel,
+    }
+  }, [nickname, stats.top, stats.weekPosts])
 
   const canClaim = useMemo(() => {
     if (!stats.top) return false
@@ -200,11 +230,72 @@ export function CitizenFeedTab({
 
   return (
     <div className="space-y-6 pb-28">
-      <div className="bg-card rounded-3xl p-6 border border-border">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center">
+              <CalendarDays className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">이번주 글</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {kpis.weekPostCount.toLocaleString()}개
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">내 글</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {kpis.myPostCount.toLocaleString()}개
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+              <Heart className="w-4 h-4 text-orange-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">이번주 받은 좋아요</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {kpis.myLikesReceived.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">베스트</p>
+              <p className="text-lg font-black text-foreground truncate">{kpis.bestLabel}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-[2.5rem] p-8 border border-border">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">시민 기자단</p>
-            <h3 className="text-xl font-bold text-foreground truncate">에코 꿀팁 공유 피드</h3>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              Citizen Feed
+            </p>
+            <h3 className="text-xl font-bold text-foreground truncate mt-1">
+              에코 꿀팁 공유 피드
+            </h3>
             <p className="text-sm text-muted-foreground mt-1">
               사진 + 짧은 기사처럼 공유하고, 좋아요 1등은 주간 보너스 포인트!
             </p>
@@ -216,7 +307,7 @@ export function CitizenFeedTab({
       </div>
 
       {stats.top && stats.top.likes > 0 && (
-        <div className="bg-card rounded-3xl p-6 border border-border">
+        <div className="glass-morphism rounded-[2.5rem] p-8 border border-border">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">이번 주 베스트 시민 기자</p>
@@ -230,7 +321,7 @@ export function CitizenFeedTab({
             <button
               onClick={claimWeeklyReward}
               disabled={!canClaim}
-              className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-primary text-primary-foreground px-5 py-4 rounded-2xl font-black disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_20px_50px_rgba(74,222,128,0.25)]"
             >
               {canClaim ? "보상 받기 (+200P)" : "보상 받기"}
             </button>
@@ -238,8 +329,15 @@ export function CitizenFeedTab({
         </div>
       )}
 
-      <div className="bg-card rounded-3xl p-6 border border-border space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">새 글 작성</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        {/* composer */}
+        <div className="glass-morphism rounded-[2.5rem] p-8 border border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-foreground">새 글 작성</h3>
+            <span className="text-xs font-bold text-muted-foreground bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-2 py-1 rounded-full">
+              {nickname}
+            </span>
+          </div>
 
         <input
           type="file"
@@ -255,7 +353,7 @@ export function CitizenFeedTab({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="예) 텀블러 30일 챌린지 후기"
-            className="w-full bg-secondary rounded-2xl px-5 py-4 text-base font-medium text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            className="w-full bg-black/5 dark:bg-white/5 rounded-2xl px-6 py-5 text-base font-bold text-foreground placeholder:text-muted-foreground/60 border border-black/10 dark:border-white/10 focus:border-primary/50 outline-none transition-all"
           />
         </div>
 
@@ -265,14 +363,14 @@ export function CitizenFeedTab({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="짧은 기사/SNS 스토리처럼 공유해보세요. (분리수거 팁, 생활 실천, before/after 등)"
-            className="w-full min-h-28 bg-secondary rounded-2xl px-5 py-4 text-base font-medium text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
+            className="w-full min-h-28 bg-black/5 dark:bg-white/5 rounded-2xl px-6 py-5 text-base font-medium text-foreground placeholder:text-muted-foreground/60 border border-black/10 dark:border-white/10 focus:border-primary/50 outline-none transition-all resize-none"
           />
         </div>
 
         {!imageDataUrl ? (
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full bg-secondary rounded-2xl py-4 border border-border hover:border-primary/40 transition flex items-center justify-center gap-2 text-foreground font-semibold"
+            className="w-full bg-black/5 dark:bg-white/5 rounded-2xl py-4 border border-black/10 dark:border-white/10 hover:border-primary/40 transition flex items-center justify-center gap-2 text-foreground font-semibold"
           >
             <ImagePlus className="w-5 h-5 text-primary" />
             사진 추가
@@ -294,105 +392,130 @@ export function CitizenFeedTab({
         <button
           onClick={handlePost}
           disabled={!title.trim() || !body.trim() || isSubmitting}
-          className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-lg font-semibold transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full bg-primary text-primary-foreground rounded-2xl py-5 text-lg font-black transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(74,222,128,0.25)]"
         >
           <Send className="w-5 h-5" />
           {isSubmitting ? "게시 중..." : "게시하기"}
         </button>
-      </div>
+        </div>
 
-      <div className="space-y-3">
-        {posts.length === 0 ? (
-          <div className="bg-card rounded-3xl p-10 border border-border text-center text-muted-foreground">
-            아직 올라온 글이 없어요. 첫 번째 시민 기자가 되어보세요!
-          </div>
-        ) : (
-          posts.map((p) => {
-            const liked = (p.likedBy ?? []).includes(nickname)
-            const likeCount = p.likedBy?.length ?? 0
-            const isEditing = editingPostId === p.id
+        {/* feed list */}
+        <div className="space-y-3">
+          {posts.length === 0 ? (
+            <div className="glass-card rounded-[2.5rem] p-10 border border-border text-center text-muted-foreground">
+              아직 올라온 글이 없어요. 첫 번째 시민 기자가 되어보세요!
+            </div>
+          ) : (
+            posts.map((p) => {
+              const liked = (p.likedBy ?? []).includes(nickname)
+              const likeCount = p.likedBy?.length ?? 0
+              const isEditing = editingPostId === p.id
 
-            return (
-              <div key={p.id} className="bg-card rounded-3xl border border-border overflow-hidden">
-                {p.imageDataUrl && (
-                  <div className="relative aspect-[16/9] bg-secondary">
-                    <Image src={p.imageDataUrl} alt={p.title} fill unoptimized className="object-cover" />
-                  </div>
-                )}
-                <div className="p-5 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-muted-foreground">{p.author}</p>
-                      
-                      {/* ⭐️ 제목 렌더링 (편집 모드 시 인풋 창) */}
-                      {isEditing ? (
-                        <input
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full mt-1 bg-secondary rounded-lg px-3 py-2 text-lg font-bold border border-border focus:border-primary outline-none"
-                        />
-                      ) : (
-                        <p className="text-lg font-bold text-foreground truncate">{p.title}</p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* ⭐️ 본인 글에만 보이는 수정/삭제 버튼 */}
-                      {p.author === nickname && !isEditing && (
-                        <div className="flex items-center border border-border rounded-2xl overflow-hidden mr-1">
-                          <button onClick={() => handleEditStart(p)} className="p-2.5 bg-secondary hover:bg-primary/10 transition text-muted-foreground hover:text-primary">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <div className="w-[1px] h-4 bg-border"></div>
-                          <button onClick={() => handleDelete(p.id)} className="p-2.5 bg-secondary hover:bg-red-500/10 transition text-muted-foreground hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => toggleLike(p.id)}
-                        className={`px-4 py-2 rounded-2xl border transition flex items-center gap-2 ${
-                          liked
-                            ? "bg-primary text-primary-foreground border-primary/50"
-                            : "bg-secondary text-foreground border-border hover:border-primary/40"
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${liked ? "" : "text-primary"}`} />
-                        <span className="font-semibold">{likeCount}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ⭐️ 본문 렌더링 (편집 모드 시 텍스트 에어리어 창) */}
-                  {isEditing ? (
-                    <div className="space-y-3 pt-2 border-t border-border mt-3">
-                      <textarea
-                        value={editBody}
-                        onChange={(e) => setEditBody(e.target.value)}
-                        className="w-full min-h-[100px] bg-secondary rounded-xl px-4 py-3 text-sm border border-border focus:border-primary outline-none resize-none"
+              return (
+                <div
+                  key={p.id}
+                  className="glass-card rounded-[2.5rem] border border-border overflow-hidden"
+                >
+                  {p.imageDataUrl && (
+                    <div className="relative aspect-[16/9] bg-secondary">
+                      <Image
+                        src={p.imageDataUrl}
+                        alt={p.title}
+                        fill
+                        unoptimized
+                        className="object-cover"
                       />
-                      <div className="flex justify-end gap-2">
-                        <button onClick={handleEditCancel} className="px-4 py-2 rounded-xl text-sm font-semibold bg-secondary hover:bg-secondary/80 text-foreground transition">
-                          취소
-                        </button>
-                        <button onClick={() => handleEditSave(p.id)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition">
-                          저장
+                    </div>
+                  )}
+                  <div className="p-6 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-muted-foreground">{p.author}</p>
+
+                        {isEditing ? (
+                          <input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full mt-1 bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-3 text-lg font-bold border border-black/10 dark:border-white/10 focus:border-primary/50 outline-none"
+                          />
+                        ) : (
+                          <p className="text-lg font-bold text-foreground truncate">
+                            {p.title}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {p.author === nickname && !isEditing && (
+                          <div className="flex items-center border border-border rounded-2xl overflow-hidden mr-1">
+                            <button
+                              onClick={() => handleEditStart(p)}
+                              className="p-2.5 bg-black/5 dark:bg-white/5 hover:bg-primary/10 transition text-muted-foreground hover:text-primary"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <div className="w-[1px] h-4 bg-border"></div>
+                            <button
+                              onClick={() => handleDelete(p.id)}
+                              className="p-2.5 bg-black/5 dark:bg-white/5 hover:bg-red-500/10 transition text-muted-foreground hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => toggleLike(p.id)}
+                          className={`px-4 py-2 rounded-2xl border transition flex items-center gap-2 ${
+                            liked
+                              ? "bg-primary text-primary-foreground border-primary/50"
+                              : "bg-black/5 dark:bg-white/5 text-foreground border-black/10 dark:border-white/10 hover:border-primary/40"
+                          }`}
+                        >
+                          <Heart className={`w-4 h-4 ${liked ? "" : "text-primary"}`} />
+                          <span className="font-semibold">{likeCount}</span>
                         </button>
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.body}</p>
-                  )}
 
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(p.createdAt).toLocaleString("ko-KR")}
-                  </p>
+                    {isEditing ? (
+                      <div className="space-y-3 pt-2 border-t border-border mt-3">
+                        <textarea
+                          value={editBody}
+                          onChange={(e) => setEditBody(e.target.value)}
+                          className="w-full min-h-[100px] bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-3 text-sm border border-black/10 dark:border-white/10 focus:border-primary/50 outline-none resize-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={handleEditCancel}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-foreground transition border border-black/10 dark:border-white/10"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={() => handleEditSave(p.id)}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition"
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {p.body}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(p.createdAt).toLocaleString("ko-KR")}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
-          })
-        )}
+              )
+            })
+          )}
+        </div>
       </div>
+
     </div>
   )
 }

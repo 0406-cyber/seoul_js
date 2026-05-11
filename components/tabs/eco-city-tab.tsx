@@ -1,7 +1,17 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
-import { Building, Sun, Zap, Droplets, Activity, Wind, Lightbulb } from "lucide-react"
+import {
+  Building,
+  Sun,
+  Zap,
+  Droplets,
+  Activity,
+  Wind,
+  Lightbulb,
+  BarChart3,
+  TrendingUp,
+} from "lucide-react"
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
@@ -84,11 +94,68 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
   const isGrid = stage.cur.id >= 3
 
   const CurrentIcon = stage.cur.Icon
+  const nextNeed = Math.max(0, (stage.next?.minPoints ?? points) - points)
+  const progressPct = Math.round(progress * 100)
 
   return (
     <div className="space-y-6 pb-28">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center">
+              <CurrentIcon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">현재 단계</p>
+              <p className="text-lg font-black text-foreground truncate">LV.{stage.cur.id}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">진행률</p>
+              <p className="text-lg font-black text-foreground truncate">{progressPct}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-orange-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">다음 단계까지</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {stage.next ? `${nextNeed.toLocaleString()}P` : "MAX"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-3xl p-4 border border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">내 포인트</p>
+              <p className="text-lg font-black text-foreground truncate">
+                {points.toLocaleString()}P
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 상태 헤더 카드 */}
-      <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
+      <div className="glass-card rounded-[2.5rem] p-8 border border-border shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-bold text-primary tracking-widest uppercase">Smart Infra Status</p>
@@ -96,6 +163,9 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
               {stage.cur.label}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">{stage.cur.subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {nickname}님의 실천 포인트로 도시 인프라가 성장합니다.
+            </p>
           </div>
           <div className={`w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(74,222,128,0.2)] ${pulse ? "eco-pop" : ""}`}>
             <CurrentIcon className="w-6 h-6 text-primary" />
@@ -125,7 +195,7 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
       </div>
 
       {/* 시각화 컨테이너 */}
-      <div className={`rounded-3xl border border-border overflow-hidden bg-gradient-to-b ${sky} relative shadow-inner`}>
+      <div className={`glass-card rounded-[2.5rem] border border-border overflow-hidden bg-gradient-to-b ${sky} relative shadow-inner`}>
         <div className="relative h-80">
           
           {/* 스모그 및 배경 파티클 */}
@@ -231,7 +301,7 @@ export function EcoCityTab({ nickname, points }: { nickname: string; points: num
       </div>
 
       {/* 엔지니어링 기반 힌트 텍스트 */}
-      <div className="bg-card rounded-3xl p-6 border border-border space-y-4 shadow-sm">
+      <div className="glass-card rounded-[2.5rem] p-8 border border-border space-y-4 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-secondary flex items-center justify-center">
             <Lightbulb className="w-3 h-3 text-muted-foreground" />
