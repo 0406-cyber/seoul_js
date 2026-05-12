@@ -24,7 +24,6 @@ import {
   getLeaderboardViaApi,
   savePointLog,
   getPointLogs,
-  getAllPointLogs,
   getSystemLogs,
   getAllOrders,
   updateOrderStatus
@@ -88,6 +87,13 @@ function MainContent() {
     setMounted(true)
     const savedName = localStorage.getItem("eco_nickname");
     if (savedName) {
+      // sessionStorage에 세션 플래그가 없으면 창을 닫았다 다시 연 것이므로 로그아웃
+      const sessionFlag = sessionStorage.getItem("eco_session");
+      if (!sessionFlag) {
+        localStorage.removeItem("eco_nickname");
+        toast.info("세션이 만료되어 로그아웃되었습니다.");
+        return;
+      }
       setNickname(savedName)
       setIsOnboarded(true)
       setPoints(loadPoints(savedName, 100))
@@ -113,7 +119,6 @@ function MainContent() {
   const [pointHistory, setPointHistory] = useState<PointHistoryItem[]>([])
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  const [adminLogs, setAdminLogs] = useState<any[]>([])
   const [sysLogs, setSysLogs] = useState<any[]>([])
   const [isAdminLogsLoading, setIsAdminLogsLoading] = useState(false)
 
@@ -180,9 +185,8 @@ function MainContent() {
     if (nickname === "admin" && isAdminAuthenticated) {
       setIsAdminLogsLoading(true);
       
-      Promise.all([getAllPointLogs(), getSystemLogs(), getAllOrders()])
-        .then(([pointLogsData, sysLogsData, ordersData]) => {
-          setAdminLogs(pointLogsData);
+      Promise.all([getSystemLogs(), getAllOrders()])
+        .then(([sysLogsData, ordersData]) => {
           setSysLogs(sysLogsData);
           setAdminOrders(ordersData);
           setIsAdminLogsLoading(false);
@@ -227,6 +231,7 @@ function MainContent() {
     
   const handleOnboardingComplete = useCallback(async (name: string) => {
     localStorage.setItem("eco_nickname", name);
+    sessionStorage.setItem("eco_session", "active");
     setNickname(name);
     setIsOnboarded(true);
   
@@ -314,10 +319,12 @@ function MainContent() {
     setIsOnboarded(false)
     setAdminPassword("")
     localStorage.removeItem("eco_nickname")
+    sessionStorage.removeItem("eco_session")
   }, [])
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("eco_nickname");
+    sessionStorage.removeItem("eco_session");
     setNickname(null);
     setIsOnboarded(false);
     setIsAdminAuthenticated(false);

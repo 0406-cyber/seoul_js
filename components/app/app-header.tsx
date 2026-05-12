@@ -82,7 +82,7 @@ export function AppHeader({
 
             <button
               onClick={onLogout}
-              className="w-10 h-10 hidden md:flex items-center justify-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
+              className="w-10 h-10 flex items-center justify-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
               title="로그아웃"
             >
               <svg
