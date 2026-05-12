@@ -7,6 +7,7 @@ import {
   Trees,
   Trophy,
   QrCode,
+  Globe2,
   type LucideIcon,
 } from "lucide-react"
 
@@ -19,6 +20,7 @@ export type TabId =
   | "ecoCity"
   | "feed"
   | "leaderboard"
+  | "carbonMap"
 
 export type TabMeta = {
   id: TabId
@@ -58,10 +60,17 @@ export const TAB_META: TabMeta[] = [
     Icon: Camera,
   },
   {
+    id: "carbonMap",
+    navLabel: "탄소맵",
+    title: "서울 탄소맵",
+    subtitle: "지역·주거별 탄소 배출 현황을 한눈에",
+    Icon: Globe2,
+  },
+  {
     id: "campaign",
     navLabel: "캠페인",
-    title: "현장 캠페인",
-    subtitle: "현장 QR을 스캔하고 스탬프를 모아보세요!",
+    title: "탄소중립 캠페인",
+    subtitle: "MBTI 테스트, 착한행동, 오늘의 탄소발자국",
     Icon: QrCode,
   },
   {
