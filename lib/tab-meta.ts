@@ -6,6 +6,7 @@ import {
   Newspaper,
   Trees,
   Trophy,
+  QrCode,
   type LucideIcon,
 } from "lucide-react"
 
@@ -14,6 +15,7 @@ export type TabId =
   | "water"
   | "coaching"
   | "certification"
+  | "campaign"
   | "ecoCity"
   | "feed"
   | "leaderboard"
@@ -54,6 +56,13 @@ export const TAB_META: TabMeta[] = [
     title: "친환경 인증",
     subtitle: "사진으로 실천을 인증하고 포인트를 모아요",
     Icon: Camera,
+  },
+  {
+    id: "campaign",
+    navLabel: "캠페인",
+    title: "현장 캠페인",
+    subtitle: "현장 QR을 스캔하고 스탬프를 모아보세요!",
+    Icon: QrCode,
   },
   {
     id: "ecoCity",

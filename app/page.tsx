@@ -10,6 +10,7 @@ import { AnalysisTab } from "@/components/tabs/analysis-tab"
 import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
 import { CertificationTab } from "@/components/tabs/certification-tab"
+import { CampaignTab } from "@/components/tabs/campaign-tab"
 import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
 import { EcoCityTab } from "@/components/tabs/eco-city-tab"
 import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
@@ -759,6 +760,10 @@ function MainContent() {
             points={points}
             certificationHistory={certificationHistory}
           />
+        )}
+
+        {activeTab === "campaign" && (
+          <CampaignTab onGrantPoints={grantPoints} />
         )}
 
         {activeTab === "ecoCity" && nickname && (
