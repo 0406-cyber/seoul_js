@@ -78,11 +78,11 @@ export function AppHeader({
             </button>
 
             <button
-              onClick={onOpenPoints}
-              className="flex items-center gap-2 md:gap-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl pl-2 pr-4 py-2 transition-all group"
-              title="포인트 내역 보기"
+              disabled
+              className="flex items-center gap-2 md:gap-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl pl-2 pr-4 py-2 transition-all opacity-50 cursor-not-allowed"
+              title="포인트 내역 보기 (비활성화됨)"
             >
-              <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center transition-transform group-hover:scale-110">
+              <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center">
                 <span className="text-sm font-black text-primary">
                   {(nickname?.charAt(0) ?? "나").toUpperCase()}
                 </span>
