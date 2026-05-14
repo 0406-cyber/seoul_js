@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Part } from "@google/generative-ai";
+import { GoogleGenAI, Part } from "@google/genai";
 
 /**
  * 공식 SDK를 사용하여 모델의 응답을 깔끔하게 가져옵니다.
@@ -26,7 +26,7 @@ function getApiKey(): string {
 }
 
 // 💡 SDK 인스턴스 생성
-const genAI = new GoogleGenerativeAI(getApiKey());
+const genAI = new GoogleGenAI(getApiKey());
 
 /**
  * AI 응답에서 혹시라도 남을 수 있는 추론 태그나 
