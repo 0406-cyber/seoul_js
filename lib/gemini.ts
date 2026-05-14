@@ -38,42 +38,42 @@ function cleanAiResponse(text: string): string {
   let cleaned = text;
 
   try {
-    // 1. 태그 형태 삭제 (<thought>, ```thought 등)
-    cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
-    cleaned = cleaned.replace(/
-```thought[\s\S]*?```/gi, "");
+    // 1. 태그 형태 삭제
+    const thoughtTagRegex = new RegExp(`<thought>[\\s\\S]*?<\\/thought>`, "gi");
+    const thoughtBlockRegex = new RegExp("```thought[\\s\\S]*?```", "gi");
+    cleaned = cleaned.replace(thoughtTagRegex, "").replace(thoughtBlockRegex, "");
 
-    // 2. 줄 단위로 쪼개서 이미지(1778736939573.jpeg)에 나타난 메타데이터 줄 삭제
+    // 2. 줄 단위 정제 (이미지와 사용자 피드백 패턴 반영)
     const lines = cleaned.split("\n");
     const filteredLines = lines.filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return false;
 
-      // 🚫 이미지에서 확인된 특정 영문 라벨로 시작하는 줄 차단
+      // 🚫 이미지에서 나타난 지저분한 라벨들 차단
       const blacklist = [
-        "User says:", "A friendly", "Friendly response", "Draft", 
-        "Option", "Analysis:", "Translation:", "Note:"
+        "User:", "Example:", "Draft", "Constraint", "Response:", 
+        "Translation:", "Tone:", "Goal:", "A friendly", "Analysis"
       ];
       
       const isBlacklisted = blacklist.some(keyword => 
-        trimmed.toLowerCase().startsWith(keyword.toLowerCase())
+        trimmed.toLowerCase().includes(keyword.toLowerCase())
       );
 
-      // 🚫 한글이 단 하나도 없는 줄은 모델의 '혼잣말'일 확률이 높으므로 삭제
+      // 🚫 한글이 전혀 없는 줄(영어/기호만 있는 줄)은 모델의 혼잣말이므로 삭제
       const hasKorean = /[가-힣]/.test(trimmed);
 
       return !isBlacklisted && hasKorean;
     });
 
-    // 여러 줄이 남았다면, 보통 가장 마지막 줄이 최종 답변입니다.
+    // 3. 필터링된 줄 중 가장 마지막 줄이 보통 "진짜 답변"입니다.
     cleaned = filteredLines.length > 0 ? filteredLines[filteredLines.length - 1] : "";
 
-    // 3. 괄호 안에 들어있는 영어 번역 삭제 (예: "안녕" (Hello) -> "안녕")
-    // 이미지 1778736939573.jpeg의 두 번째 답변 패턴 해결
+    // 4. 문장 내 괄호와 그 안의 영어 내용 삭제 (예: "안녕" (Hi) -> "안녕")
+    // 이미지 1778736939573.jpeg의 패턴을 직접 타격합니다.
     cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, "");
 
-    // 4. 문장 앞뒤에 붙은 불필요한 따옴표 제거
-    cleaned = cleaned.replace(/^["']|["']$/g, "");
+    // 5. 문장 앞뒤에 남은 불필요한 기호(*, ", ') 정리
+    cleaned = cleaned.replace(/^[*"' ]+|[*"' ]+$/g, "");
 
   } catch (e) {
     console.error("정제 로직 에러:", e);
