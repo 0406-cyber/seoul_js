@@ -7,16 +7,17 @@ import { toast } from "sonner"
 import { useTheme } from "next-themes"
 import { BottomNav } from "@/components/bottom-nav"
 import { AnalysisTab } from "@/components/tabs/analysis-tab"
-import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
-import { CertificationTab } from "@/components/tabs/certification-tab"
-import { CampaignTab } from "@/components/tabs/campaign-tab"
 import { CarbonMapTab } from "@/components/tabs/carbon-map-tab"
-import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
-import { EcoCityTab } from "@/components/tabs/eco-city-tab"
-import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
+import { CertificationTab } from "@/components/tabs/certification-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
-import { DailyMissionsCard } from "@/components/daily-missions-card"
+// import { DailyMissionsCard } from "@/components/daily-missions-card"
+// import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
+// import { CertificationTab } from "@/components/tabs/certification-tab"
+// import { CampaignTab } from "@/components/tabs/campaign-tab"
+// import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
+// import { EcoCityTab } from "@/components/tabs/eco-city-tab"
+// import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
 import {
   computeCo2Kg,
   saveUsage,
@@ -267,12 +268,14 @@ function MainContent() {
     }
   }, []);
 
+  /* 비활성화된 기능: 피드 보상 포인트는 현재 seoul_min에서 사용되지 않습니다.
   const awardPoints = useCallback((delta: number, reason: string) => {
     setPoints((p) => p + delta);
     if (nickname) {
       recordPoint(nickname, reason, delta);
     }
   }, [nickname, recordPoint])
+  */
 
   const grantPoints = useCallback(
     async (delta: number, reason: string) => {
@@ -729,12 +732,7 @@ function MainContent() {
       />
 
       <AppContainer className="py-6">
-        <DailyMissionsCard
-          nickname={nickname ?? "user"}
-          points={points}
-          hasUsageToday={hasUsageToday}
-          onGrantPoints={grantPoints}
-        />
+        {/* 오늘의 미션은 seoul_min에서 비활성화되었습니다. */}
 
         {activeTab === "analysis" && (
           <AnalysisTab
@@ -749,7 +747,8 @@ function MainContent() {
           />
         )}
 
-        {activeTab === "water" && <WaterFootprintTab />}
+        {/* 비활성화된 탭: 필요한 경우 주석 해제해서 다시 사용할 수 있습니다. */}
+        {/* {activeTab === "water" && <WaterFootprintTab />} */}
 
         {activeTab === "coaching" && (
           <CoachingTab
@@ -774,24 +773,24 @@ function MainContent() {
           <CarbonMapTab />
         )}
 
-        {activeTab === "campaign" && (
+        {/* {activeTab === "campaign" && (
           <CampaignTab nickname={nickname ?? "user"} points={points} onGrantPoints={grantPoints} />
-        )}
+        )} */}
 
-        {activeTab === "ecoCity" && nickname && (
+        {/* {activeTab === "ecoCity" && nickname && (
           <EcoCityTab nickname={nickname} points={points} onSpendPoints={spendPoints} />
-        )}
+        )} */}
 
-        {activeTab === "feed" && nickname && (
+        {/* {activeTab === "feed" && nickname && (
           <CitizenFeedTab
             nickname={nickname}
             onAwardPoints={(delta, reason) => awardPoints(delta, reason)}
           />
-        )}
+        )} */}
 
-        {activeTab === "leaderboard" && (
+        {/* {activeTab === "leaderboard" && (
           <LeaderboardTab entries={leaderboard} currentUserId="current" />
-        )}
+        )} */}
       </AppContainer>
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />

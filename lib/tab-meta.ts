@@ -1,13 +1,8 @@
 import {
   BarChart3,
-  Camera,
-  Droplets,
   MessageCircle,
-  Newspaper,
-  Trees,
-  Trophy,
-  QrCode,
   Globe2,
+  Camera,
   type LucideIcon,
 } from "lucide-react"
 
@@ -39,18 +34,18 @@ export const TAB_META: TabMeta[] = [
     Icon: BarChart3,
   },
   {
-    id: "water",
-    navLabel: "물",
-    title: "물 발자국",
-    subtitle: "물 사용량과 오염도 지표를 함께 확인해요",
-    Icon: Droplets,
-  },
-  {
     id: "coaching",
     navLabel: "AI",
     title: "AI 코칭",
     subtitle: "내 상황에 맞춘 에너지 절약 플랜을 받아요",
     Icon: MessageCircle,
+  },
+  {
+    id: "carbonMap",
+    navLabel: "탄소맵",
+    title: "서울 탄소맵",
+    subtitle: "지역·주거별 탄소 배출 현황을 한눈에",
+    Icon: Globe2,
   },
   {
     id: "certification",
@@ -59,12 +54,14 @@ export const TAB_META: TabMeta[] = [
     subtitle: "사진으로 실천을 인증하고 포인트를 모아요",
     Icon: Camera,
   },
+  // 비활성화된 탭: 나중에 다시 활성화하려면 아래 항목을 주석 해제하세요.
+  /*
   {
-    id: "carbonMap",
-    navLabel: "탄소맵",
-    title: "서울 탄소맵",
-    subtitle: "지역·주거별 탄소 배출 현황을 한눈에",
-    Icon: Globe2,
+    id: "water",
+    navLabel: "물",
+    title: "물 발자국",
+    subtitle: "물 사용량과 오염도 지표를 함께 확인해요",
+    Icon: Droplets,
   },
   {
     id: "campaign",
@@ -94,6 +91,7 @@ export const TAB_META: TabMeta[] = [
     subtitle: "친구들과 포인트·절약량을 비교해요",
     Icon: Trophy,
   },
+  */
 ]
 
 export function getTabMeta(id: string | null | undefined) {

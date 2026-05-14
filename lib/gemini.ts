@@ -1,199 +1,159 @@
+import { GoogleGenAI } from "@google/genai";
+
 /**
- * app.py의 Gemini/Gemma 호출 로직과 동일한 동작
- * + 진짜 에러 메시지 화면 출력 기능 추가
- * + 복사 에러 방지용 안전한 파싱 로직 적용 (문자열 자르기)
+ * @google/genai SDK를 사용하여 모델의 응답을 가져옵니다.
+ * 싱글톤 인스턴스를 통해 API 키 누락으로 인한 런타임 에러를 방지합니다.
  */
-
-// 💡 Gemma 3 등 최신 모델을 지원하는 v1alpha 주소로 변경
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1alpha/models";
-
 const GEMMA_MODELS = [
-  "gemma-4-31b-it",     // 1순위: 최고 성능 Dense 모델
-  "gemma-4-26b-a4b-it", // 2순위: 빠른 속도의 MoE 모델 (Fallback용)
+  "gemma-4-31b-it",     // 1순위
+  "gemma-4-26b-a4b-it", // 2순위
 ];
 
 // 이미지 분석을 위한 Gemini 모델 리스트
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite-preview",
-  "gemini-3.1-flash-live-preview",
   "gemini-2.5-flash-lite",
 ];
 
-function getApiKey(): string {
-  const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!key) {
-    throw new Error("NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다.");
+// 싱글톤 인스턴스 관리
+let aiInstance: any = null;
+
+function getAI() {
+  if (!aiInstance) {
+    // Cloudflare Pages 환경 변수 우선 순위 설정
+    const key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    
+    if (!key) {
+      console.error("⚠️ Gemini API Key가 설정되지 않았습니다.");
+      return null;
+    }
+    
+    // @google/genai SDK는 객체 형태로 키를 받습니다.
+    aiInstance = new GoogleGenAI({ apiKey: key });
   }
-  return key;
+  return aiInstance;
 }
 
-type GenerateContentResponse = {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-  }>;
-};
-
+/**
+ * 텍스트 API 호출 (Fallback 포함)
+ */
 export async function callTextApiWithFallback(
   prompt: string,
-  models: string[] = GEMMA_MODELS
+  models: string[] = GEMMA_MODELS,
+  systemInstruction: string = "너는 친절한 AI 어시스턴트야. 생각 과정은 생략하고 한국어로 최종 답변만 해줘."
 ): Promise<string> {
-  const apiKey = getApiKey();
-  let lastErrorDetails = "";
+  const ai = getAI();
+  if (!ai) return "⚠️ API 키 설정 오류 (환경 변수를 확인하세요)";
 
-  for (const model of models) {
-    const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+  let lastErrorDetails = "알 수 없는 오류";
 
+  for (const modelName of models) {
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15_000),
+      // @google/genai 최신 호출 방식 적용
+      const response = await ai.models.generateContent({
+        model: modelName,
+        systemInstruction: systemInstruction,
+        contents: prompt,
+        config: {
+          temperature: 0.6,
+        }
       });
 
-      if (response.status === 429) {
-        lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
-        continue; // 다음 모델로 넘어감
+      // SDK가 제공하는 text 속성만 사용 (기존 finalCleanUp 제거)
+      if (response && response.text) {
+        return response.text.trim();
       }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
-        continue; // 다음 모델로 넘어감
-      }
-
-      const result = (await response.json()) as GenerateContentResponse;
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
     } catch (error: any) {
-      lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
-      continue; // 다음 모델로 넘어감
+      lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
+      continue;
     }
   }
 
   return `⚠️ AI 호출 실패 원인:\n\n${lastErrorDetails}`;
 }
 
-export async function getGemmaAdvice(
-  elec: number,
-  gas: number,
-  co2: number
-): Promise<string> {
-  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어 3문장 이내로 조언해줘.`;
-  return callTextApiWithFallback(prompt, GEMMA_MODELS);
+export async function getGemmaAdvice(elec: number, gas: number, co2: number): Promise<string> {
+  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
+  const systemInstruction = "너는 에너지 절약 전문가야. 분석과 따뜻한 조언을 한국어로만 짧게 말해줘.";
+  return callTextApiWithFallback(prompt, GEMMA_MODELS, systemInstruction);
 }
 
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-  return callTextApiWithFallback(userMessage, GEMMA_MODELS);
+  const systemInstruction = "너는 친구 같은 AI야. 사용자의 말에 대한 최종 답변만 한국어로 친절하게 짧게 대답해.";
+  return callTextApiWithFallback(userMessage, GEMMA_MODELS, systemInstruction);
 }
 
+// 이미지 분석 결과 타입
 export type ImageAnalysisResult = {
   action_found?: string;
   description?: string;
   estimated_save_kwh?: string;
 } | null;
 
+/**
+ * 이미지 분석 시 JSON 응답을 추출하기 위한 최소한의 파싱 로직은 유지합니다.
+ */
 function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
-
-  // 복사 시 에러가 나지 않도록 특수기호를 빼고 indexOf 방식 적용
   const startIdx = trimmed.indexOf("```");
   if (startIdx !== -1) {
     const endIdx = trimmed.lastIndexOf("```");
     if (endIdx > startIdx) {
       jsonStr = trimmed.substring(startIdx + 3, endIdx);
-      if (jsonStr.toLowerCase().startsWith("json")) {
-        jsonStr = jsonStr.substring(4);
-      }
+      if (jsonStr.toLowerCase().startsWith("json")) jsonStr = jsonStr.substring(4);
     }
   }
-
   const braceStart = jsonStr.indexOf("{");
   const braceEnd = jsonStr.lastIndexOf("}");
   if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
     jsonStr = jsonStr.substring(braceStart, braceEnd + 1);
   }
-
-  try {
-    return JSON.parse(jsonStr) as ImageAnalysisResult;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(jsonStr) as ImageAnalysisResult; } catch { return null; }
 }
 
 export async function analyzeImageWithGemini(
   dataUrl: string,
   mimeTypeHint?: string
 ): Promise<{ result: ImageAnalysisResult; error: string | null }> {
-  const apiKey = getApiKey();
-  let lastErrorDetails = ""; 
+  const ai = getAI();
+  if (!ai) return { result: null, error: "API 키 설정 오류" };
 
+  let lastErrorDetails = ""; 
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) {
-    return { result: null, error: "이미지 데이터 형식이 올바르지 않습니다." };
-  }
+  if (!match) return { result: null, error: "이미지 데이터 형식이 올바르지 않습니다." };
 
   const mimeType = mimeTypeHint || match[1] || "image/jpeg";
   const encodedImage = match[2];
 
-  const prompt = `이 이미지를 분석해서 사용자가 '어떤 에너지 절약 행동'을 하고 있는지 파악해줘. 그리고 그 행동으로 인해 대략 몇 kWh의 전기를 절약했을지 추정해줘. (예: 전등 끄기 1시간 = 0.05kWh 소모 가정) 답변은 반드시 아래 JSON 형식으로만 해줘. 마크다운 기호 없이 순수 JSON 텍스트만 출력해. {"action_found": "true 또는 false", "description": "어떤 행동인지 한글 설명", "estimated_save_kwh": "추정 절약량 숫자만"}`;
-
-  for (const model of GEMINI_VISION_MODELS) {
-    const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const payload = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: encodedImage,
-              },
-            },
-          ],
-        },
-      ],
-    };
-
+  for (const modelName of GEMINI_VISION_MODELS) {
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30_000),
+      const prompt = `이미지를 분석해서 에너지 절약 행동을 파악하고 JSON으로만 답변해: {"action_found": "true/false", "description": "설명", "estimated_save_kwh": "숫자"}`;
+
+      // SDK 방식의 멀티모달 호출
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              { inlineData: { data: encodedImage, mimeType } }
+            ]
+          }
+        ]
       });
 
-      if (response.status === 429) {
-        lastErrorDetails = `[${model}] 429 Too Many Requests: 한도 초과`;
-        continue;
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        lastErrorDetails = `[${model} HTTP ${response.status}] ${errorText}`;
-        continue;
-      }
-
-      const resultData = (await response.json()) as GenerateContentResponse;
-      const resultText = resultData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const resultText = result.text;
       if (!resultText) continue;
 
       const parsed = extractJsonObject(resultText);
-      if (parsed) {
-        return { result: parsed, error: null };
-      }
+      if (parsed) return { result: parsed, error: null };
     } catch (error: any) {
-      lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
+      lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
       continue;
     }
   }
-
-  return {
-    result: null,
-    error: `상세 에러: ${lastErrorDetails}`,
-  };
+  return { result: null, error: `상세 에러: ${lastErrorDetails}` };
 }
