@@ -58,7 +58,7 @@ const SEOUL_DISTRICTS_DATA: DistrictStats[] = [
   { id: "seodaemun", name: "서대문구", pop: 306500, households: 149000, aptRatio: 68, detRatio: 18, co2: 155, elec: 242, pos: { x: "38%", y: "35%" }, path: "M 180,200 L 230,200 L 220,260 L 170,260 Z" },
 ]
 
-export function RealSeoulCarbonMap() {
+export function CarbonMapTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
