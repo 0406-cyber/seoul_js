@@ -5,7 +5,7 @@
  * + 복사 에러 방지용 안전한 파싱 로직 적용
  */
 
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1alpha/models";
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     // 1순위: 최고 성능 Dense 모델
@@ -93,10 +93,7 @@ export async function callTextApiWithFallback(
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        // 💡 문장이 끝나고 줄바꿈을 두 번 하면 강제로 끊어서 추론 노출 방지
-        stopSequences: ["\n\n"], 
         temperature: 0.6, // 온도를 낮춰서 헛소리 확률 감소
-        maxOutputTokens: 1000
       }
     };
 
@@ -141,10 +138,10 @@ export async function getGemmaAdvice(
   gas: number,
   co2: number
 ): Promise<string> {
-  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어 3문장 이내로 조언해줘.`;
+  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
   
   // 💡 getGemmaAdvice 전용 시스템 지침 강화
-  const systemInstruction = "너는 에너지 절약 전문가야. 분석이나 옵션, 사용자에게 건네는 따뜻한 조언 등 3문장 이내로 말해줘.";
+  const systemInstruction = "너는 에너지 절약 전문가야. 분석이나 옵션, 사용자에게 건네는 따뜻한 조언 등을 말해줘.";
   return callTextApiWithFallback(prompt, GEMMA_MODELS, systemInstruction);
 }
 
