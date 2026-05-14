@@ -42,29 +42,32 @@ function finalCleanUp(text: string): string {
   if (!text) return "";
   let cleaned = text;
 
-  // 1. 태그 및 생각 블록 제거 (<thought>, ```thought)
-  cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
-  cleaned = cleaned.replace(/
-```thought[\s\S]*?```/gi, "");
+  try {
+    // 1. 태그 및 생각 블록 제거 (<thought>, ```thought)
+    cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
+    cleaned = cleaned.replace(/```thought[\s\S]*?```/gi, "");
 
-  // 2. 줄 단위 정제 (한글이 포함된 실제 답변 줄만 추출)
-  const lines = cleaned.split("\n");
-  const filteredLines = lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return false;
+    // 2. 특정 라벨로 시작하는 줄 및 영어 번역(괄호) 제거
+    const lines = cleaned.split("\n");
+    const filteredLines = lines.filter(line => {
+      const trimmed = line.trim();
+      const blacklist = ["User:", "Example:", "Draft", "Response:", "Analysis:", "Goal:", "Constraint:"];
+      const isBlacklisted = blacklist.some(k => trimmed.toLowerCase().includes(k.toLowerCase()));
+      const hasKorean = /[가-힣]/.test(trimmed);
+      return !isBlacklisted && hasKorean;
+    });
 
-    const blacklist = ["User:", "Example:", "Draft", "Response:", "Analysis:", "Goal:", "Constraint:"];
-    const isBlacklisted = blacklist.some(k => trimmed.toLowerCase().includes(k.toLowerCase()));
-    const hasKorean = /[가-힣]/.test(trimmed);
+    cleaned = filteredLines.join(" ").trim();
     
-    return !isBlacklisted && hasKorean;
-  });
+    // 3. 괄호 안의 영어 번역 제거 및 특수 기호 정리
+    cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, ""); 
+    cleaned = cleaned.replace(/^[*"' ]+|[*"' ]+$/g, ""); 
+    
+  } catch (e) {
+    console.error("정제 로직 에러:", e);
+  }
 
-  // 모든 줄을 합친 후 괄호 안의 영어 번역 등을 제거
-  cleaned = filteredLines.join(" ").trim();
-  cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, ""); 
-  
-  return cleaned.replace(/^[*"' ]+|[*"' ]+$/g, ""); // 앞뒤 특수기호 정리
+  return cleaned.trim();
 }
 
 /**
