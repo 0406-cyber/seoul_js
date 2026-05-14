@@ -122,8 +122,7 @@ function extractJsonObject(text: string): ImageAnalysisResult {
 
   const startIdx = trimmed.indexOf("```");
   if (startIdx !== -1) {
-    const endIdx = trimmed.lastIndexOf("
-```");
+    const endIdx = trimmed.lastIndexOf("```");
     if (endIdx > startIdx) {
       jsonStr = trimmed.substring(startIdx + 3, endIdx);
       if (jsonStr.toLowerCase().startsWith("json")) {
