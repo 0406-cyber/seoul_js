@@ -7,322 +7,242 @@ import {
   Home,
   Leaf,
   Search,
-  ChevronDown,
-  Info,
-  BarChart3,
   Users,
-  LayoutGrid
+  Info,
+  TrendingUp,
+  BarChart3
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
-interface DistrictData {
+// 자치구별 상세 데이터 (2024-2025 최신 지표 반영)
+interface DistrictStats {
   id: string
   name: string
-  population: number // 인구 (명)
+  pop: number // 인구 (명)
   households: number // 가구 (세대)
-  apartmentRatio: number // 아파트 비율 (%)
-  detachedRatio: number // 단독주택 비율 (%)
-  co2PerHousehold: number // 가구당 월 CO₂ 배출량 (kg)
-  avgElecKwh: number // 월평균 전력 (kWh)
-  avgGasM3: number // 월평균 가스 (m³)
-  gridPos: { x: number; y: number } // 지도상의 상대적 위치 (그리드)
+  aptRatio: number // 아파트 비율 (%)
+  detRatio: number // 단독주택 비율 (%)
+  co2: number // 가구당 월 CO2 (kg)
+  elec: number // 월 전력 (kWh)
+  // 지도 위 막대 그래프 표시를 위한 상대적 좌표 (SVG 내 위치 %)
+  pos: { x: string; y: string }
+  // 실제 행정구역 모양을 위한 SVG Path (단순화된 형태)
+  path: string
 }
 
-// 2024-2025 최신 통계 기반 근사 데이터
-const SEOUL_DATA: DistrictData[] = [
-  { id: "dobong", name: "도봉구", population: 304000, households: 139000, apartmentRatio: 74, detachedRatio: 12, co2PerHousehold: 158, avgElecKwh: 245, avgGasM3: 42, gridPos: { x: 3, y: 0 } },
-  { id: "nowon", name: "노원구", population: 498000, households: 219000, apartmentRatio: 88, detachedRatio: 4, co2PerHousehold: 162, avgElecKwh: 260, avgGasM3: 44, gridPos: { x: 4, y: 0 } },
-  { id: "gangbuk", name: "강북구", population: 289000, households: 145000, apartmentRatio: 48, detachedRatio: 32, co2PerHousehold: 142, avgElecKwh: 210, avgGasM3: 38, gridPos: { x: 2, y: 1 } },
-  { id: "seongbuk", name: "성북구", population: 428000, households: 198000, apartmentRatio: 65, detachedRatio: 22, co2PerHousehold: 154, avgElecKwh: 240, avgGasM3: 41, gridPos: { x: 3, y: 1 } },
-  { id: "jungnang", name: "중랑구", population: 382000, households: 188000, apartmentRatio: 52, detachedRatio: 28, co2PerHousehold: 148, avgElecKwh: 225, avgGasM3: 40, gridPos: { x: 4, y: 1 } },
-  { id: "eunpyeong", name: "은평구", population: 463000, households: 216000, apartmentRatio: 62, detachedRatio: 24, co2PerHousehold: 150, avgElecKwh: 235, avgGasM3: 42, gridPos: { x: 1, y: 1 } },
-  { id: "jongno", name: "종로구", population: 140000, households: 78000, apartmentRatio: 42, detachedRatio: 36, co2PerHousehold: 168, avgElecKwh: 275, avgGasM3: 45, gridPos: { x: 2, y: 2 } },
-  { id: "dongdaemun", name: "동대문구", population: 341000, households: 175000, apartmentRatio: 60, detachedRatio: 21, co2PerHousehold: 152, avgElecKwh: 238, avgGasM3: 41, gridPos: { x: 3, y: 2 } },
-  { id: "seodaemun", name: "서대문구", population: 306000, households: 149000, apartmentRatio: 68, detachedRatio: 18, co2PerHousehold: 155, avgElecKwh: 242, avgGasM3: 42, gridPos: { x: 1, y: 2 } },
-  { id: "mapo", name: "마포구", population: 365000, households: 182000, apartmentRatio: 72, detachedRatio: 14, co2PerHousehold: 172, avgElecKwh: 285, avgGasM3: 44, gridPos: { x: 1, y: 3 } },
-  { id: "jung", name: "중구", population: 121000, households: 66000, apartmentRatio: 64, detachedRatio: 19, co2PerHousehold: 165, avgElecKwh: 280, avgGasM3: 43, gridPos: { x: 2, y: 3 } },
-  { id: "seongdong", name: "성동구", population: 278000, households: 134000, apartmentRatio: 82, detachedRatio: 10, co2PerHousehold: 178, avgElecKwh: 310, avgGasM3: 42, gridPos: { x: 3, y: 3 } },
-  { id: "gwangjin", name: "광진구", population: 334000, households: 171000, apartmentRatio: 51, detachedRatio: 29, co2PerHousehold: 146, avgElecKwh: 230, avgGasM3: 39, gridPos: { x: 4, y: 3 } },
-  { id: "gangseo", name: "강서구", population: 563000, households: 275000, apartmentRatio: 68, detachedRatio: 15, co2PerHousehold: 158, avgElecKwh: 250, avgGasM3: 42, gridPos: { x: 0, y: 3 } },
-  { id: "yangcheon", name: "양천구", population: 435000, households: 183000, apartmentRatio: 84, detachedRatio: 8, co2PerHousehold: 185, avgElecKwh: 320, avgGasM3: 46, gridPos: { x: 0, y: 4 } },
-  { id: "guro", name: "구로구", population: 392000, households: 185000, apartmentRatio: 75, detachedRatio: 16, co2PerHousehold: 156, avgElecKwh: 245, avgGasM3: 41, gridPos: { x: 0, y: 5 } },
-  { id: "yeongdeungpo", name: "영등포구", population: 376000, households: 192000, apartmentRatio: 70, detachedRatio: 14, co2PerHousehold: 170, avgElecKwh: 295, avgGasM3: 43, gridPos: { x: 1, y: 4 } },
-  { id: "yongsan", name: "용산구", population: 215000, households: 109000, apartmentRatio: 61, detachedRatio: 26, co2PerHousehold: 195, avgElecKwh: 345, avgGasM3: 48, gridPos: { x: 2, y: 4 } },
-  { id: "dongjak", name: "동작구", population: 381000, households: 188000, apartmentRatio: 72, detachedRatio: 18, co2PerHousehold: 160, avgElecKwh: 255, avgGasM3: 42, gridPos: { x: 2, y: 5 } },
-  { id: "gwanak", name: "관악구", population: 483000, households: 291000, apartmentRatio: 48, detachedRatio: 38, co2PerHousehold: 140, avgElecKwh: 215, avgGasM3: 38, gridPos: { x: 2, y: 6 } },
-  { id: "geumcheon", name: "금천구", population: 228000, households: 121000, apartmentRatio: 58, detachedRatio: 27, co2PerHousehold: 135, avgElecKwh: 205, avgGasM3: 37, gridPos: { x: 1, y: 6 } },
-  { id: "seocho", name: "서초구", population: 404000, households: 172000, apartmentRatio: 86, detachedRatio: 6, co2PerHousehold: 215, avgElecKwh: 420, avgGasM3: 49, gridPos: { x: 3, y: 5 } },
-  { id: "gangnam", name: "강남구", population: 546000, households: 242000, apartmentRatio: 85, detachedRatio: 5, co2PerHousehold: 232, avgElecKwh: 450, avgGasM3: 52, gridPos: { x: 4, y: 5 } },
-  { id: "songpa", name: "송파구", population: 658000, households: 289000, apartmentRatio: 82, detachedRatio: 7, co2PerHousehold: 202, avgElecKwh: 385, avgGasM3: 47, gridPos: { x: 5, y: 4 } },
-  { id: "gangdong", name: "강동구", population: 459000, households: 206000, apartmentRatio: 80, detachedRatio: 10, co2PerHousehold: 175, avgElecKwh: 305, avgGasM3: 44, gridPos: { x: 5, y: 3 } },
+const SEOUL_DISTRICTS_DATA: DistrictStats[] = [
+  { id: "gangnam", name: "강남구", pop: 546291, households: 242000, aptRatio: 85, detRatio: 5, co2: 232, elec: 450, pos: { x: "65%", y: "75%" }, path: "M 320,380 L 350,380 L 360,420 L 330,440 L 310,420 Z" },
+  { id: "songpa", name: "송파구", pop: 658338, households: 289000, aptRatio: 82, detRatio: 7, co2: 202, elec: 385, pos: { x: "80%", y: "70%" }, path: "M 360,380 L 400,380 L 420,410 L 400,450 L 360,430 Z" },
+  { id: "gangseo", name: "강서구", pop: 563500, households: 275000, aptRatio: 68, detRatio: 15, co2: 158, elec: 250, pos: { x: "15%", y: "45%" }, path: "M 50,250 L 100,220 L 120,280 L 80,320 L 40,300 Z" },
+  { id: "nowon", name: "노원구", pop: 498300, households: 219000, aptRatio: 88, detRatio: 4, co2: 162, elec: 260, pos: { x: "75%", y: "15%" }, path: "M 350,80 L 400,80 L 410,140 L 360,160 Z" },
+  { id: "seocho", name: "서초구", pop: 404300, households: 172000, aptRatio: 86, detRatio: 6, co2: 215, elec: 420, pos: { x: "53%", y: "80%" }, path: "M 270,380 L 310,380 L 320,450 L 260,460 Z" },
+  { id: "gwanak", name: "관악구", pop: 483100, households: 291000, aptRatio: 48, detRatio: 38, co2: 140, elec: 215, pos: { x: "42%", y: "85%" }, path: "M 200,400 L 250,410 L 240,460 L 190,450 Z" },
+  { id: "yongsan", name: "용산구", pop: 215200, households: 109000, aptRatio: 61, detRatio: 26, co2: 195, elec: 345, pos: { x: "48%", y: "55%" }, path: "M 230,290 L 280,290 L 280,340 L 230,340 Z" },
+  { id: "jongno", name: "종로구", pop: 140500, households: 78000, aptRatio: 42, detRatio: 36, co2: 168, elec: 275, pos: { x: "46%", y: "30%" }, path: "M 230,180 L 280,180 L 280,240 L 230,240 Z" },
+  { id: "junggu", name: "중구", pop: 121400, households: 66000, aptRatio: 64, detRatio: 19, co2: 165, elec: 280, pos: { x: "51%", y: "45%" }, path: "M 240,250 L 290,250 L 290,290 L 240,290 Z" },
+  { id: "mapo", name: "마포구", pop: 365100, households: 182000, aptRatio: 72, detRatio: 14, co2: 172, elec: 285, pos: { x: "32%", y: "45%" }, path: "M 160,260 L 210,240 L 230,290 L 180,310 Z" },
+  { id: "yeongdeungpo", name: "영등포구", pop: 376200, households: 192000, aptRatio: 70, detRatio: 14, co2: 170, elec: 295, pos: { x: "30%", y: "62%" }, path: "M 160,320 L 210,310 L 220,380 L 150,380 Z" },
+  { id: "gangdong", name: "강동구", pop: 459100, households: 206000, aptRatio: 80, detRatio: 10, co2: 175, elec: 305, pos: { x: "88%", y: "45%" }, path: "M 410,240 L 460,240 L 470,320 L 420,340 Z" },
+  { id: "eunpyeong", name: "은평구", pop: 463200, households: 216000, aptRatio: 62, detRatio: 24, co2: 150, elec: 235, pos: { x: "32%", y: "20%" }, path: "M 180,120 L 230,100 L 250,180 L 200,200 Z" },
+  { id: "yangcheon", name: "양천구", pop: 435100, households: 183000, aptRatio: 84, detRatio: 8, co2: 185, elec: 320, pos: { x: "18%", y: "65%" }, path: "M 90,330 L 140,320 L 150,380 L 100,400 Z" },
+  { id: "guro", name: "구로구", pop: 392500, households: 185000, aptRatio: 75, detRatio: 16, co2: 156, elec: 245, pos: { x: "18%", y: "78%" }, path: "M 80,380 L 140,380 L 140,440 L 80,440 Z" },
+  { id: "geumcheon", name: "금천구", pop: 228200, households: 121000, aptRatio: 58, detRatio: 27, co2: 135, elec: 205, pos: { x: "28%", y: "88%" }, path: "M 150,420 L 190,420 L 190,480 L 150,480 Z" },
+  { id: "dongjak", name: "동작구", pop: 381400, households: 188000, aptRatio: 72, detRatio: 18, co2: 160, elec: 255, pos: { x: "40%", y: "68%" }, path: "M 220,350 L 270,350 L 270,400 L 220,400 Z" },
+  { id: "seongdong", name: "성동구", pop: 278500, households: 134000, aptRatio: 82, detRatio: 10, co2: 178, elec: 310, pos: { x: "60%", y: "45%" }, path: "M 300,260 L 350,260 L 350,320 L 300,320 Z" },
+  { id: "gwangjin", name: "광진구", pop: 334100, households: 171000, aptRatio: 51, detRatio: 29, co2: 146, elec: 230, pos: { x: "72%", y: "45%" }, path: "M 360,260 L 410,260 L 410,340 L 360,340 Z" },
+  { id: "dongdaemun", name: "동대문구", pop: 341200, households: 175000, aptRatio: 60, detRatio: 21, co2: 152, elec: 238, pos: { x: "63%", y: "32%" }, path: "M 310,180 L 360,180 L 360,250 L 310,250 Z" },
+  { id: "jungnang", name: "중랑구", pop: 382400, households: 188000, aptRatio: 52, detRatio: 28, co2: 148, elec: 225, pos: { x: "75%", y: "30%" }, path: "M 370,180 L 420,180 L 420,250 L 370,250 Z" },
+  { id: "seongbuk", name: "성북구", pop: 428100, households: 198000, aptRatio: 65, detRatio: 22, co2: 154, elec: 240, pos: { x: "55%", y: "25%" }, path: "M 270,140 L 340,140 L 340,190 L 270,190 Z" },
+  { id: "gangbuk", name: "강북구", pop: 289200, households: 145000, aptRatio: 48, detRatio: 32, co2: 142, elec: 210, pos: { x: "52%", y: "12%" }, path: "M 260,60 L 320,60 L 320,130 L 260,130 Z" },
+  { id: "dobong", name: "도봉구", pop: 304200, households: 139000, aptRatio: 74, detRatio: 12, co2: 158, elec: 245, pos: { x: "63%", y: "10%" }, path: "M 330,40 L 380,40 L 380,100 L 330,100 Z" },
+  { id: "seodaemun", name: "서대문구", pop: 306500, households: 149000, aptRatio: 68, detRatio: 18, co2: 155, elec: 242, pos: { x: "38%", y: "35%" }, path: "M 180,200 L 230,200 L 220,260 L 170,260 Z" },
 ]
 
-type SortKey = "name" | "co2PerHousehold" | "population" | "apartmentRatio"
-
-export function CarbonMapTab() {
+export function RealSeoulCarbonMap() {
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedDistrict, setSelectedDistrict] = useState<DistrictData | null>(null)
-  const [viewMode, setViewMode] = useState<"map" | "list">("map")
-  const [sortBy, setSortBy] = useState<SortKey>("name")
-  const [sortAsc, setSortAsc] = useState(true)
 
-  const filteredDistricts = useMemo(() => {
-    let list = [...SEOUL_DATA]
-    if (searchTerm) list = list.filter(d => d.name.includes(searchTerm))
-    
-    list.sort((a, b) => {
-      let cmp = 0
-      if (sortBy === "name") cmp = a.name.localeCompare(b.name)
-      else cmp = (a[sortBy] as number) - (b[sortBy] as number)
-      return sortAsc ? cmp : -cmp
-    })
-    return list
-  }, [searchTerm, sortBy, sortAsc])
+  const filteredData = useMemo(() => {
+    return SEOUL_DISTRICTS_DATA.filter(d => d.name.includes(searchTerm))
+  }, [searchTerm])
 
-  const getStatusColor = (co2: number) => {
-    if (co2 >= 200) return "bg-red-500"
-    if (co2 >= 170) return "bg-orange-500"
-    if (co2 >= 150) return "bg-yellow-500"
-    return "bg-emerald-500"
-  }
+  const selectedData = useMemo(() => {
+    return SEOUL_DISTRICTS_DATA.find(d => d.id === selectedId) || null
+  }, [selectedId])
 
-  const getStatusText = (co2: number) => {
-    if (co2 >= 200) return "매우 높음"
-    if (co2 >= 170) return "높음"
-    if (co2 >= 150) return "보통"
-    return "안전"
+  const getColor = (co2: number) => {
+    if (co2 >= 200) return "#ef4444" // red-500
+    if (co2 >= 170) return "#f97316" // orange-500
+    if (co2 >= 150) return "#eab308" // yellow-500
+    return "#10b981" // emerald-500
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-20 animate-in fade-in duration-700">
-      {/* Top Info Header */}
-      <Card className="p-5 bg-gradient-to-br from-emerald-600 to-green-700 text-white border-none shadow-xl">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-black flex items-center gap-2 mb-1">
-              <Leaf className="w-6 h-6" /> 서울 자치구별 탄소 지표
-            </h2>
-            <p className="text-emerald-100 text-sm">
-              2024 통계청 데이터 기반으로 했는데 최신 데이터 찾으면 변경하면 될 것 같습니다!.
-            </p>
-          </div>
-          <div className="flex gap-2 bg-white/10 p-1 rounded-lg backdrop-blur-md">
-            <button 
-              onClick={() => setViewMode("map")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === "map" ? "bg-white text-emerald-700 shadow-sm" : "hover:bg-white/10"}`}
-            >
-              지도 뷰
-            </button>
-            <button 
-              onClick={() => setViewMode("list")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === "list" ? "bg-white text-emerald-700 shadow-sm" : "hover:bg-white/10"}`}
-            >
-              리스트
-            </button>
-          </div>
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto p-4 md:p-8 animate-in fade-in duration-1000">
+      
+      {/* 상단 통계 헤더 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b pb-6">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <Leaf className="w-8 h-8 text-emerald-500" /> 서울 탄소맵
+          </h1>
+          <p className="text-slate-500 mt-2 font-medium">
+            **2024년 통계청 데이터로 일단 해놨는데 나중에 데이터는 변경해야될 듯 합니다
+          </p>
         </div>
-      </Card>
-
-      {/* Control Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+        <div className="w-full md:w-64 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input 
             type="text"
-            placeholder="자치구 검색 (예: 강남구)..."
+            placeholder="자치구 검색..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all"
           />
         </div>
       </div>
 
-      {viewMode === "map" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Map Visualization Area */}
-          <Card className="lg:col-span-2 p-4 md:p-8 bg-slate-50 dark:bg-slate-950 overflow-hidden min-h-[500px]">
-            <div className="relative w-full max-w-[600px] mx-auto aspect-square">
-              {/* Layout Grid (Simplified Seoul Map) */}
-              <div className="grid grid-cols-6 grid-rows-7 gap-2 w-full h-full">
-                {SEOUL_DATA.map((district) => {
-                  const barHeight = (district.co2PerHousehold / 250) * 100
-                  const isSelected = selectedDistrict?.id === district.id
-                  
-                  return (
-                    <div
-                      key={district.id}
-                      style={{
-                        gridColumnStart: district.gridPos.x + 1,
-                        gridRowStart: district.gridPos.y + 1,
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-4">
+        
+        {/* 실제 지도 영역 (SVG) */}
+        <Card className="lg:col-span-8 p-6 bg-white dark:bg-slate-950 border-none shadow-2xl overflow-hidden relative min-h-[600px] flex items-center justify-center">
+          <div className="relative w-full aspect-square max-w-[600px]">
+            {/* SVG Background Map */}
+            <svg viewBox="0 0 500 500" className="w-full h-full drop-shadow-2xl">
+              {SEOUL_DISTRICTS_DATA.map((d) => (
+                <path
+                  key={d.id}
+                  d={d.path}
+                  fill={getColor(d.co2)}
+                  fillOpacity={selectedId === d.id ? 1 : 0.6}
+                  stroke="white"
+                  strokeWidth={selectedId === d.id ? 3 : 1}
+                  className="transition-all duration-300 cursor-pointer hover:fill-opacity-90"
+                  onClick={() => setSelectedId(d.id)}
+                />
+              ))}
+            </svg>
+
+            {/* 지도 위 막대 그래프 오버레이 */}
+            {SEOUL_DISTRICTS_DATA.map((d) => {
+              const barHeight = (d.co2 / 250) * 80 // 최대 80px 높이
+              return (
+                <div 
+                  key={`bar-${d.id}`}
+                  style={{ left: d.pos.x, top: d.pos.y }}
+                  className="absolute -translate-x-1/2 -translate-y-full pointer-events-none flex flex-col items-center group z-10"
+                >
+                  <div className="flex items-end gap-1 h-[80px]">
+                    {/* 탄소 배출 막대 */}
+                    <div 
+                      className="w-4 rounded-t-sm transition-all duration-1000 ease-out"
+                      style={{ 
+                        height: `${barHeight}px`, 
+                        backgroundColor: getColor(d.co2),
+                        boxShadow: "0 0 10px rgba(0,0,0,0.1)"
                       }}
-                      className={`relative group cursor-pointer transition-all duration-300 hover:z-20`}
-                      onClick={() => setSelectedDistrict(district)}
-                    >
-                      {/* Bar Graph on Map */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 px-1">
-                        <div 
-                          className={`w-full rounded-t-sm transition-all duration-1000 ease-out flex items-start justify-center ${getStatusColor(district.co2PerHousehold)}`}
-                          style={{ height: `${barHeight}%` }}
-                        >
-                          <span className="text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            {district.co2PerHousehold}
-                          </span>
-                        </div>
-                        <div className={`w-full h-1 rounded-b-sm bg-slate-300 dark:bg-slate-700`} />
-                      </div>
-                      
-                      {/* District Label */}
-                      <div className={`
-                        absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 rounded text-[9px] font-black tracking-tighter
-                        ${isSelected ? "bg-emerald-600 text-white" : "bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}
-                        shadow-sm border border-slate-200 dark:border-slate-700
-                      `}>
-                        {district.name.replace("구", "")}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            
-            {/* Legend */}
-            <div className="mt-8 flex flex-wrap gap-4 justify-center bg-white dark:bg-slate-900 p-3 rounded-xl border border-border">
-              <div className="flex items-center gap-2 text-xs font-bold">
-                <span className="text-slate-400">배출 등급:</span>
-                <div className="flex gap-3">
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-emerald-500"/> 안전</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-yellow-500"/> 보통</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-orange-500"/> 높음</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"/> 매우 높음</div>
+                    />
+                  </div>
+                  <div className={`mt-1 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm transition-colors ${selectedId === d.id ? "bg-slate-900 text-white" : "bg-white/90 text-slate-700 border"}`}>
+                    {d.name.replace("구", "")}
+                  </div>
                 </div>
+              )
+            })}
+          </div>
+
+          {/* 범례 (Legend) */}
+          <div className="absolute bottom-6 left-6 flex flex-col gap-2 bg-white/80 dark:bg-slate-900/80 p-3 rounded-lg backdrop-blur-md border text-[11px] font-bold">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500" /> 150kg 이하 (안전)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500" /> 150 - 170kg (보통)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-orange-500" /> 170 - 200kg (높음)</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500" /> 200kg 이상 (매우 높음)</div>
+          </div>
+        </Card>
+
+        {/* 우측 상세 정보 패널 */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          {selectedData ? (
+            <Card className="p-6 border-l-4 border-l-emerald-500 shadow-xl animate-in slide-in-from-right duration-500">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800 dark:text-white">{selectedData.name}</h2>
+                  <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-bold">District Profile</p>
+                </div>
+                <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
+                  <MapPin className="w-5 h-5 text-emerald-600" />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl">
+                    <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold mb-1">
+                      <Users className="w-3 h-3" /> 총 인구
+                    </div>
+                    <div className="text-xl font-black">{selectedData.pop.toLocaleString()}<span className="text-xs font-normal ml-1">명</span></div>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl">
+                    <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold mb-1">
+                      <TrendingUp className="w-3 h-3" /> 가구 수
+                    </div>
+                    <div className="text-xl font-black">{selectedData.households.toLocaleString()}<span className="text-xs font-normal ml-1">세대</span></div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <div className="flex justify-between items-center text-sm font-bold mb-2">
+                      <span className="flex items-center gap-2"><Building2 className="w-4 h-4 text-blue-500" /> 아파트 비율</span>
+                      <span className="text-blue-600">{selectedData.aptRatio}%</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${selectedData.aptRatio}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center text-sm font-bold mb-2">
+                      <span className="flex items-center gap-2"><Home className="w-4 h-4 text-amber-500" /> 단독주택 비율</span>
+                      <span className="text-amber-600">{selectedData.detRatio}%</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-500 rounded-full transition-all duration-1000" style={{ width: `${selectedData.detRatio}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-lg relative overflow-hidden group">
+                  <div className="relative z-10">
+                    <p className="text-emerald-400 text-[10px] font-black uppercase tracking-tighter mb-1">Monthly Carbon Footprint</p>
+                    <div className="text-3xl font-black mb-1">{selectedData.co2}<span className="text-sm font-normal ml-1 text-slate-400">kg CO₂</span></div>
+                    <p className="text-[10px] text-slate-400">가구당 월평균 전력 사용량: **{selectedData.elec}kWh**</p>
+                  </div>
+                  <BarChart3 className="absolute right-[-10px] bottom-[-10px] w-24 h-24 text-white/5 group-hover:text-white/10 transition-all duration-500" />
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <div className="h-full border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                <MapPin className="w-10 h-10 text-slate-200" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-400">지도의 구역을 클릭하여<br />상세 정보를 확인하세요</h3>
+            </div>
+          )}
+
+          {/* 탄소 인사이트 섹션 */}
+          <Card className="p-5 bg-emerald-50/50 dark:bg-emerald-950/20 border-none">
+            <div className="flex gap-3">
+              <Info className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                <span className="font-black text-emerald-700 dark:text-emerald-500">엔지니어링 인사이트:</span><br />
+                아파트 비율이 높은 지역(**노원**, **양천**)은 집단 에너지 효율이 좋으나 가구 밀집도가 높아 총 배출량이 큽니다. 반면 **강남**, **서초**는 대형 평수와 높은 전력 소비로 인해 가구당 배출량이 서울 평균을 상회합니다.
               </div>
             </div>
           </Card>
-
-          {/* District Detail Panel */}
-          <div className="space-y-4">
-            {selectedDistrict ? (
-              <Card className="p-6 border-emerald-500/30 shadow-lg animate-in slide-in-from-right duration-500">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-black text-slate-800 dark:text-white">{selectedDistrict.name}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> 서울특별시 자치구
-                    </p>
-                  </div>
-                  <div className={`px-4 py-1 rounded-full text-white text-xs font-black ${getStatusColor(selectedDistrict.co2PerHousehold)}`}>
-                    {getStatusText(selectedDistrict.co2PerHousehold)}
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
-                      <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> 총 인구
-                      </p>
-                      <p className="text-lg font-bold">{(selectedDistrict.population / 10000).toFixed(1)}<span className="text-sm font-normal ml-0.5">만 명</span></p>
-                    </div>
-                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
-                      <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">
-                        <LayoutGrid className="w-3 h-3" /> 총 가구
-                      </p>
-                      <p className="text-lg font-bold">{(selectedDistrict.households / 10000).toFixed(1)}<span className="text-sm font-normal ml-0.5">만 세대</span></p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <span className="text-sm font-bold flex items-center gap-1.5"><Building2 className="w-4 h-4 text-blue-500"/> 아파트 비율</span>
-                      <span className="text-sm font-black text-blue-600">{selectedDistrict.apartmentRatio}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${selectedDistrict.apartmentRatio}%` }} />
-                    </div>
-                    
-                    <div className="flex justify-between items-end mt-2">
-                      <span className="text-sm font-bold flex items-center gap-1.5"><Home className="w-4 h-4 text-amber-500"/> 단독주택 비율</span>
-                      <span className="text-sm font-black text-amber-600">{selectedDistrict.detachedRatio}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full transition-all duration-700" style={{ width: `${selectedDistrict.detachedRatio}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-border">
-                    <div className="flex items-center gap-2 mb-3">
-                      <BarChart3 className="w-4 h-4 text-emerald-600" />
-                      <span className="text-sm font-bold">월평균 에너지 소비</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className="py-2 px-1 rounded-lg border border-border">
-                        <p className="text-[10px] text-muted-foreground">전력</p>
-                        <p className="text-md font-black">{selectedDistrict.avgElecKwh}<span className="text-[10px] font-normal">kWh</span></p>
-                      </div>
-                      <div className="py-2 px-1 rounded-lg border border-border">
-                        <p className="text-[10px] text-muted-foreground">가스</p>
-                        <p className="text-md font-black">{selectedDistrict.avgGasM3}<span className="text-[10px] font-normal">m³</span></p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ) : (
-              <Card className="h-full flex flex-col items-center justify-center p-8 text-center border-dashed border-2">
-                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
-                  <MapPin className="w-8 h-8 text-slate-300" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-400">지도를 클릭하여 상세 데이터를 확인하세요</h4>
-              </Card>
-            )}
-          </div>
         </div>
-      ) : (
-        <Card className="overflow-hidden border-border shadow-md">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900 border-b border-border">
-                <tr>
-                  <th className="px-4 py-4 font-bold">자치구</th>
-                  <th className="px-4 py-4 font-bold text-center">인구(명)</th>
-                  <th className="px-4 py-4 font-bold text-center">아파트(%)</th>
-                  <th className="px-4 py-4 font-bold text-center">단독(%)</th>
-                  <th className="px-4 py-4 font-bold text-right text-emerald-600">CO₂/가구(kg)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredDistricts.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer" onClick={() => {setSelectedDistrict(d); setViewMode("map")}}>
-                    <td className="px-4 py-4 font-bold">{d.name}</td>
-                    <td className="px-4 py-4 text-center text-muted-foreground">{d.population.toLocaleString()}</td>
-                    <td className="px-4 py-4 text-center">{d.apartmentRatio}%</td>
-                    <td className="px-4 py-4 text-center">{d.detachedRatio}%</td>
-                    <td className="px-4 py-4 text-right">
-                      <span className={`inline-block px-2 py-1 rounded font-bold ${getStatusColor(d.co2PerHousehold)} text-white text-xs min-w-[45px] text-center`}>
-                        {d.co2PerHousehold}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* Analytics Insight */}
-      <Card className="p-5 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
-        <div className="flex gap-3">
-          <Info className="w-5 h-5 text-blue-500 shrink-0" />
-          <div className="text-xs leading-relaxed text-blue-800 dark:text-blue-200">
-            <p className="font-bold mb-1">데이터 분석 요약:</p>
-            **강남구**, **서초구**, **송파구** 등 동남권 지역은 가구당 에너지 사용량(전력)이 평균보다 약 **30%** 이상 높으며, 
-            이에 따라 탄소 배출 등급이 **매우 높음** 단계로 나타납니다. 
-            반면 단독주택 비율이 높은 **관악구**, **강북구** 등은 가구당 배출량이 상대적으로 낮지만, 
-            노후 주택의 에너지 효율 개선(창호, 단열)이 탄소 중립의 핵심 과제로 분석됩니다.
-          </div>
-        </div>
-      </Card>
+      </div>
     </div>
   )
 }
