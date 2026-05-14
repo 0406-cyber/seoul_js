@@ -65,8 +65,7 @@ function cleanAiResponse(text: string): string {
       return !isBlacklisted && hasKorean;
     });
 
-    // 3. 필터링된 줄 중 가장 마지막 줄이 보통 "진짜 답변"입니다.
-    cleaned = filteredLines.length > 0 ? filteredLines[filteredLines.length - 1] : "";
+
 
     // 4. 문장 내 괄호와 그 안의 영어 내용 삭제 (예: "안녕" (Hi) -> "안녕")
     // 이미지 1778736939573.jpeg의 패턴을 직접 타격합니다.
@@ -103,8 +102,8 @@ export async function callTextApiWithFallback(
       generationConfig: {
         // 💡 문장이 끝나고 줄바꿈을 두 번 하면 강제로 끊어서 추론 노출 방지
         stopSequences: ["\n\n"], 
-        temperature: 0.4, // 온도를 낮춰서 헛소리 확률 감소
-        maxOutputTokens: 500
+        temperature: 0.6, // 온도를 낮춰서 헛소리 확률 감소
+        maxOutputTokens: 1000
       }
     };
 
@@ -152,7 +151,7 @@ export async function getGemmaAdvice(
   const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어 3문장 이내로 조언해줘.`;
   
   // 💡 getGemmaAdvice 전용 시스템 지침 강화
-  const systemInstruction = "너는 에너지 절약 전문가야. 분석이나 옵션 제시 없이 바로 사용자에게 건네는 따뜻한 조언만 3문장 이내로 말해줘.";
+  const systemInstruction = "너는 에너지 절약 전문가야. 분석이나 옵션, 사용자에게 건네는 따뜻한 조언 등 3문장 이내로 말해줘.";
   return callTextApiWithFallback(prompt, GEMMA_MODELS, systemInstruction);
 }
 
