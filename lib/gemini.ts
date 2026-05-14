@@ -38,43 +38,43 @@ function cleanAiResponse(text: string): string {
   let cleaned = text;
 
   try {
-    // 1. <thought> 태그 및 ```thought 블록 삭제 (백틱 기호 사용으로 안전하게)
-    const thoughtTagRegex = new RegExp(`<thought>[\\s\\S]*?<\\/thought>`, "gi");
-    const thoughtBlockRegex = new RegExp("```thought[\\s\\S]*?```", "gi");
-    cleaned = cleaned.replace(thoughtTagRegex, "").replace(thoughtBlockRegex, "");
+    // 1. 태그 형태 삭제 (<thought>, ```thought 등)
+    cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
+    cleaned = cleaned.replace(/
+```thought[\s\S]*?```/gi, "");
 
-    // 2. 줄 단위로 쪼개서 검사 (진짜 답변만 골라내기)
+    // 2. 줄 단위로 쪼개서 이미지(1778736939573.jpeg)에 나타난 메타데이터 줄 삭제
     const lines = cleaned.split("\n");
     const filteredLines = lines.filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return false;
 
-      // 🚫 차단할 키워드들 (이 단어들로 시작하면 무조건 삭제)
+      // 🚫 이미지에서 확인된 특정 영문 라벨로 시작하는 줄 차단
       const blacklist = [
-        "Role:", "Constraint", "User Data:", "Goal:", "Tone:", 
-        "Language:", "Input:", "Draft", "Response:", "Analysis:",
-        "Refining", "Option", "Final Answer:"
+        "User says:", "A friendly", "Friendly response", "Draft", 
+        "Option", "Analysis:", "Translation:", "Note:"
       ];
       
       const isBlacklisted = blacklist.some(keyword => 
-        trimmed.toLowerCase().includes(keyword.toLowerCase())
+        trimmed.toLowerCase().startsWith(keyword.toLowerCase())
       );
 
-      // 🚫 영문과 기호로만 된 줄도 삭제 (보통 메타데이터임)
-      // 한글이 아예 포함되어 있지 않다면 삭제합니다.
+      // 🚫 한글이 단 하나도 없는 줄은 모델의 '혼잣말'일 확률이 높으므로 삭제
       const hasKorean = /[가-힣]/.test(trimmed);
 
       return !isBlacklisted && hasKorean;
     });
 
-    cleaned = filteredLines.join("\n");
+    // 여러 줄이 남았다면, 보통 가장 마지막 줄이 최종 답변입니다.
+    cleaned = filteredLines.length > 0 ? filteredLines[filteredLines.length - 1] : "";
 
-    // 3. 만약 'Draft 1: [진짜내용]' 처럼 한 줄에 섞여 있을 경우를 대비해 앞부분 제거
-    cleaned = cleaned.replace(/^(Draft \d+:|Response:|최종 답변:)/gi, "");
+    // 3. 괄호 안에 들어있는 영어 번역 삭제 (예: "안녕" (Hello) -> "안녕")
+    // 이미지 1778736939573.jpeg의 두 번째 답변 패턴 해결
+    cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, "");
 
-    // 4. 마지막으로 남은 따옴표나 불필요한 마크다운 기호 정리
-    cleaned = cleaned.replace(/[*#]/g, ""); 
-    
+    // 4. 문장 앞뒤에 붙은 불필요한 따옴표 제거
+    cleaned = cleaned.replace(/^["']|["']$/g, "");
+
   } catch (e) {
     console.error("정제 로직 에러:", e);
   }
