@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/bottom-nav"
 import { AnalysisTab } from "@/components/tabs/analysis-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
 import { CarbonMapTab } from "@/components/tabs/carbon-map-tab"
+import { CertificationTab } from "@/components/tabs/certification-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
 // import { DailyMissionsCard } from "@/components/daily-missions-card"
 // import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
@@ -758,7 +759,7 @@ function MainContent() {
           />
         )}
 
-        {/* {activeTab === "certification" && (
+        {activeTab === "certification" && (
           <CertificationTab
             selectedImage={selectedImage}
             onImageSelect={setSelectedImage}
@@ -766,7 +767,7 @@ function MainContent() {
             points={points}
             certificationHistory={certificationHistory}
           />
-        )} */}
+        )}
 
         {activeTab === "carbonMap" && (
           <CarbonMapTab />

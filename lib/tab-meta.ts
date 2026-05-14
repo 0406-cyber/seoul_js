@@ -2,6 +2,7 @@ import {
   BarChart3,
   MessageCircle,
   Globe2,
+  Camera,
   type LucideIcon,
 } from "lucide-react"
 
@@ -46,6 +47,13 @@ export const TAB_META: TabMeta[] = [
     subtitle: "지역·주거별 탄소 배출 현황을 한눈에",
     Icon: Globe2,
   },
+  {
+    id: "certification",
+    navLabel: "인증",
+    title: "친환경 인증",
+    subtitle: "사진으로 실천을 인증하고 포인트를 모아요",
+    Icon: Camera,
+  },
   // 비활성화된 탭: 나중에 다시 활성화하려면 아래 항목을 주석 해제하세요.
   /*
   {
@@ -54,13 +62,6 @@ export const TAB_META: TabMeta[] = [
     title: "물 발자국",
     subtitle: "물 사용량과 오염도 지표를 함께 확인해요",
     Icon: Droplets,
-  },
-  {
-    id: "certification",
-    navLabel: "인증",
-    title: "친환경 인증",
-    subtitle: "사진으로 실천을 인증하고 포인트를 모아요",
-    Icon: Camera,
   },
   {
     id: "campaign",
