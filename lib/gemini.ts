@@ -64,12 +64,22 @@
         let text = candidate?.content?.parts?.[0]?.text;
 
         // 1. 텍스트가 존재하는 경우 처리
+        // callTextApiWithFallback 내부 수정
         if (text) {
-          // 💡 <thought> 태그 및 내부 내용 삭제
-          text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, "").trim();
+          // 1. 태그 삭제
+          text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
           
-          // 💡 생각 과정을 다 지웠는데 빈 문자열인 경우도 고려
-          if (text) return text;
+          // 2. "분석:", "Option 1:", "해설:" 등 흔한 추론 패턴 이후만 남기기
+          // 보통 "최종 답변:" 이라는 문구 뒤에 진짜 답이 오도록 유도했으므로 그 부분을 찾습니다.
+          const answerMarker = "최종 답변:";
+          if (text.includes(answerMarker)) {
+            text = text.split(answerMarker).pop() || text;
+          }
+
+          // 3. 불필요한 마크다운 기호나 줄바꿈 정리
+          text = text.replace(/\*\*분석:\*\*|Analysis:|Option \d:/gi, "");
+          
+          return text.trim();
         }
         
         // 2. 텍스트가 없거나 차단된 경우 (Safety Filter 등)
@@ -96,7 +106,15 @@
   }
 
   export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-    return callTextApiWithFallback(userMessage, GEMMA_MODELS);
+  // 💡 모델이 헛소리할 틈을 주지 않는 시스템 명령문
+    const systemInstruction = `[필독 지시사항]
+  1. 분석, 생각 과정, 대안 제시(Option 1, 2)를 절대로 출력하지 마십시오.
+  2. 인사말도 생략하고 오직 사용자의 질문에 대한 '최종 답변'만 한국어로 한두 문장 내로 즉시 출력하십시오.
+  3. 마치 친구와 대화하듯 친절하지만 아주 짧게 대답하십시오.`;
+
+    const strictPrompt = `${systemInstruction}\n\n사용자 질문: "${userMessage}"\n\n최종 답변:`;
+    
+    return callTextApiWithFallback(strictPrompt, GEMMA_MODELS);
   }
 
   export type ImageAnalysisResult = {
