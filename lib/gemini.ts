@@ -45,8 +45,7 @@ function cleanAiResponse(text: string): string {
     // 1. 태그 형태 삭제 (<thought>, ```thought 등)
     // 줄바꿈 에러 방지를 위해 문자열 기반으로 정규식을 생성합니다.
     const thoughtTagRegex = new RegExp("<thought>[\\s\\S]*?<\\/thought>", "gi");
-    const thoughtBlockRegex = new RegExp("
-```thought[\\s\\S]*?```", "gi");
+    const thoughtBlockRegex = new RegExp("```thought[\\s\\S]*?```", "gi");
     
     cleaned = cleaned.replace(thoughtTagRegex, "");
     cleaned = cleaned.replace(thoughtBlockRegex, "");
