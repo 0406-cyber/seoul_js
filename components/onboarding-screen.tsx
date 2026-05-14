@@ -126,7 +126,6 @@ export function OnboardingScreen({ onComplete, checkIsExistingUser }: Onboarding
               <FeatureItem icon="chart" text="전기/가스 사용량 분석" />
               <FeatureItem icon="ai" text="AI 맞춤 에너지 코칭" />
               <FeatureItem icon="camera" text="친환경 활동 인증" />
-              <FeatureItem icon="trophy" text="친구들과 랭킹 경쟁" />
             </div>
           </>
         ) : (
@@ -140,7 +139,7 @@ export function OnboardingScreen({ onComplete, checkIsExistingUser }: Onboarding
                 환영해요, <span className="text-primary">{nickname}</span>님!
               </h1>
               <p className="text-muted-foreground mb-8">
-                지구를 위한 작은 실천을 함께 시작해볼까요?
+                지구를 위한 작은 실천을 함께 시작해요
               </p>
 
               <div className="bg-card border border-border rounded-3xl p-6 mb-8">
