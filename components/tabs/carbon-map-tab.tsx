@@ -450,7 +450,6 @@ export function CarbonMapTab() {
                   승강기·지하주차장·공용조명 절전 정책이 효과적인 지역입니다.
                 </li>
               </ul>
-              </ul>
             </div>
           </Card>
         </>
