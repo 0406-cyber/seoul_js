@@ -16,22 +16,25 @@ const GEMINI_VISION_MODELS = [
   "gemini-3.1-flash-live-preview",
   "gemini-2.5-flash-lite",
 ];
+// 싱글톤 패턴으로 인스턴스 관리
+let aiInstance: any = null;
 
-function getApiKey(): string {
-  const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!key) {
-    throw new Error("NEXT_PUBLIC_GEMINI_API_KEY가 설정되지 않았습니다.");
+function getAI() {
+  if (!aiInstance) {
+    // 💡 Cloudflare 환경 변수 우선 순위 설정
+    const key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    
+    if (!key) {
+      console.error("⚠️ Gemini API Key가 설정되지 않았습니다.");
+      return null;
+    }
+    
+    // 💡 새로운 SDK는 객체 형태로 키를 넘깁니다.
+    aiInstance = new GoogleGenAI({ apiKey: key });
   }
-  return key;
+  return aiInstance;
 }
 
-// 💡 SDK 인스턴스 생성
-const genAI = new GoogleGenAI(getApiKey());
-
-/**
- * AI 응답에서 혹시라도 남을 수 있는 추론 태그나 
- * 불필요한 라벨(User:, Draft:)을 마지막으로 정리합니다.
- */
 function finalCleanUp(text: string): string {
   if (!text) return "";
   let cleaned = text;
