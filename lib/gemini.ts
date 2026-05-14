@@ -9,6 +9,7 @@ const GEMMA_MODELS = [
   "gemma-4-26b-a4b-it", // 2순위
 ];
 
+// 이미지 분석을 위한 Gemini 모델 리스트
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite-preview",
