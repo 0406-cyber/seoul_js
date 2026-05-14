@@ -32,51 +32,48 @@ type GenerateContentResponse = {
     finishReason?: string;
   }>;
 };
-/**
- * 💡 AI가 뱉는 지저분한 추론 과정들을 코드로 직접 도려내는 정제 함수
- * 정규식 리터럴 대신 생성자 방식을 사용하여 줄바꿈 에러를 방지했습니다.
- */
 function cleanAiResponse(text: string): string {
   if (!text) return "";
 
   let cleaned = text;
 
   try {
-    // 1. 태그 형태 삭제 (<thought>, ```thought 등)
-    // 줄바꿈 에러 방지를 위해 문자열 기반으로 정규식을 생성합니다.
-    const thoughtTagRegex = new RegExp("<thought>[\\s\\S]*?<\\/thought>", "gi");
+    // 1. <thought> 태그 및 ```thought 블록 삭제 (백틱 기호 사용으로 안전하게)
+    const thoughtTagRegex = new RegExp(`<thought>[\\s\\S]*?<\\/thought>`, "gi");
     const thoughtBlockRegex = new RegExp("```thought[\\s\\S]*?```", "gi");
-    
-    cleaned = cleaned.replace(thoughtTagRegex, "");
-    cleaned = cleaned.replace(thoughtBlockRegex, "");
+    cleaned = cleaned.replace(thoughtTagRegex, "").replace(thoughtBlockRegex, "");
 
-    // 2. 모델이 스스로 과업을 분석하는 리스트 패턴 삭제
-    const trashPatterns = [
-      /^\s*[\*\-\d\.]+\s*Input:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Goal:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Tone:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Constraint:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Refining.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Option\s*\d:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Response:.*$/gm,
-      /^\s*[\*\-\d\.]+\s*Analysis:.*$/gm
-    ];
+    // 2. 줄 단위로 쪼개서 검사 (진짜 답변만 골라내기)
+    const lines = cleaned.split("\n");
+    const filteredLines = lines.filter(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
 
-    trashPatterns.forEach(pattern => {
-      cleaned = cleaned.replace(pattern, "");
+      // 🚫 차단할 키워드들 (이 단어들로 시작하면 무조건 삭제)
+      const blacklist = [
+        "Role:", "Constraint", "User Data:", "Goal:", "Tone:", 
+        "Language:", "Input:", "Draft", "Response:", "Analysis:",
+        "Refining", "Option", "Final Answer:"
+      ];
+      
+      const isBlacklisted = blacklist.some(keyword => 
+        trimmed.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      // 🚫 영문과 기호로만 된 줄도 삭제 (보통 메타데이터임)
+      // 한글이 아예 포함되어 있지 않다면 삭제합니다.
+      const hasKorean = /[가-힣]/.test(trimmed);
+
+      return !isBlacklisted && hasKorean;
     });
 
-    // 3. 특정 마커 이후의 내용만 추출
-    const markers = ["Response:", "최종 답변:", "결과:"];
-    for (const marker of markers) {
-      if (cleaned.includes(marker)) {
-        const parts = cleaned.split(marker);
-        cleaned = parts[parts.length - 1];
-      }
-    }
+    cleaned = filteredLines.join("\n");
 
-    // 4. 불필요한 마크다운 기호 및 앞뒤 공백 정리
-    cleaned = cleaned.replace(/^\s*\([\s\S]*?\)\s*$/gm, "");
+    // 3. 만약 'Draft 1: [진짜내용]' 처럼 한 줄에 섞여 있을 경우를 대비해 앞부분 제거
+    cleaned = cleaned.replace(/^(Draft \d+:|Response:|최종 답변:)/gi, "");
+
+    // 4. 마지막으로 남은 따옴표나 불필요한 마크다운 기호 정리
+    cleaned = cleaned.replace(/[*#]/g, ""); 
     
   } catch (e) {
     console.error("정제 로직 에러:", e);
