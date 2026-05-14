@@ -32,49 +32,56 @@ type GenerateContentResponse = {
     finishReason?: string;
   }>;
 };
-
 /**
- * 💡 AI가 뱉는 지저분한 추론 과정(Analysis, Option 1, * Goal 등)을 
- * 코드로 직접 도려내는 정제 함수
+ * 💡 AI가 뱉는 지저분한 추론 과정들을 코드로 직접 도려내는 정제 함수
+ * 정규식 리터럴 대신 생성자 방식을 사용하여 줄바꿈 에러를 방지했습니다.
  */
 function cleanAiResponse(text: string): string {
   if (!text) return "";
 
   let cleaned = text;
 
-  // 1. 태그 형태 삭제 (<thought>, ```thought 등)
-  cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
-  cleaned = cleaned.replace(/
-```thought[\s\S]*?```/gi, "");
+  try {
+    // 1. 태그 형태 삭제 (<thought>, ```thought 등)
+    // 줄바꿈 에러 방지를 위해 문자열 기반으로 정규식을 생성합니다.
+    const thoughtTagRegex = new RegExp("<thought>[\\s\\S]*?<\\/thought>", "gi");
+    const thoughtBlockRegex = new RegExp("
+```thought[\\s\\S]*?```", "gi");
+    
+    cleaned = cleaned.replace(thoughtTagRegex, "");
+    cleaned = cleaned.replace(thoughtBlockRegex, "");
 
-  // 2. 모델이 스스로 과업을 분석하는 리스트 패턴 삭제 (* Input:, * Goal:, * Tone: 등)
-  // 줄 시작 부분에 *, -, 1. 등이 있고 뒤에 특정 단어가 오는 경우 해당 줄 삭제
-  const trashPatterns = [
-    /^\s*[\*\-\d\.]+\s*Input:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Goal:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Tone:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Constraint:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Refining.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Option\s*\d:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Response:.*$/gm,
-    /^\s*[\*\-\d\.]+\s*Analysis:.*$/gm
-  ];
+    // 2. 모델이 스스로 과업을 분석하는 리스트 패턴 삭제
+    const trashPatterns = [
+      /^\s*[\*\-\d\.]+\s*Input:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Goal:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Tone:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Constraint:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Refining.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Option\s*\d:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Response:.*$/gm,
+      /^\s*[\*\-\d\.]+\s*Analysis:.*$/gm
+    ];
 
-  trashPatterns.forEach(pattern => {
-    cleaned = cleaned.replace(pattern, "");
-  });
+    trashPatterns.forEach(pattern => {
+      cleaned = cleaned.replace(pattern, "");
+    });
 
-  // 3. 만약 "Response:" 또는 "최종 답변:" 이라는 단어가 포함되어 있다면 그 이후만 사용
-  const markers = ["Response:", "최종 답변:", "결과:"];
-  for (const marker of markers) {
-    if (cleaned.includes(marker)) {
-      const parts = cleaned.split(marker);
-      cleaned = parts[parts.length - 1]; 
+    // 3. 특정 마커 이후의 내용만 추출
+    const markers = ["Response:", "최종 답변:", "결과:"];
+    for (const marker of markers) {
+      if (cleaned.includes(marker)) {
+        const parts = cleaned.split(marker);
+        cleaned = parts[parts.length - 1];
+      }
     }
-  }
 
-  // 4. 괄호로 감싸진 요약문이나 불필요한 마크다운 기호 정리
-  cleaned = cleaned.replace(/^\s*\([\s\S]*?\)\s*$/gm, ""); // (Input: ...) 형태 삭제
+    // 4. 불필요한 마크다운 기호 및 앞뒤 공백 정리
+    cleaned = cleaned.replace(/^\s*\([\s\S]*?\)\s*$/gm, "");
+    
+  } catch (e) {
+    console.error("정제 로직 에러:", e);
+  }
 
   return cleaned.trim();
 }
