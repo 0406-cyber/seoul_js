@@ -4,7 +4,6 @@ import { GoogleGenAI } from "@google/genai";
  * @google/genai SDK를 사용하여 모델의 응답을 가져옵니다.
  * 싱글톤 인스턴스를 통해 API 키 누락으로 인한 런타임 에러를 방지합니다.
  */
-
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     // 1순위
   "gemma-4-26b-a4b-it", // 2순위
@@ -36,41 +35,6 @@ function getAI() {
 }
 
 /**
- * AI 응답에서 남을 수 있는 추론 태그 및 불필요한 메타데이터(User:, Draft: 등)를 제거합니다.
- */
-function finalCleanUp(text: string): string {
-  if (!text) return "";
-  let cleaned = text;
-
-  try {
-    // 1. 태그 및 생각 블록 제거 (<thought>, ```thought)
-    cleaned = cleaned.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
-    cleaned = cleaned.replace(/```thought[\s\S]*?```/gi, "");
-
-    // 2. 특정 라벨로 시작하는 줄 및 영어 번역(괄호) 제거
-    const lines = cleaned.split("\n");
-    const filteredLines = lines.filter(line => {
-      const trimmed = line.trim();
-      const blacklist = ["User:", "Example:", "Draft", "Response:", "Analysis:", "Goal:", "Constraint:"];
-      const isBlacklisted = blacklist.some(k => trimmed.toLowerCase().includes(k.toLowerCase()));
-      const hasKorean = /[가-힣]/.test(trimmed);
-      return !isBlacklisted && hasKorean;
-    });
-
-    cleaned = filteredLines.join(" ").trim();
-    
-    // 3. 괄호 안의 영어 번역 제거 및 특수 기호 정리
-    cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, ""); 
-    cleaned = cleaned.replace(/^[*"' ]+|[*"' ]+$/g, ""); 
-    
-  } catch (e) {
-    console.error("정제 로직 에러:", e);
-  }
-
-  return cleaned.trim();
-}
-
-/**
  * 텍스트 API 호출 (Fallback 포함)
  */
 export async function callTextApiWithFallback(
@@ -92,16 +56,13 @@ export async function callTextApiWithFallback(
         contents: prompt,
         config: {
           stopSequences: ["\n\n"],
-          temperature: 0.4,
-          maxOutputTokens: 500,
+          temperature: 0.6,
         }
       });
 
-      // SDK가 1차적으로 정제한 텍스트 추출
-      const text = response.text;
-
-      if (text) {
-        return finalCleanUp(text); // 2차 최종 정제 후 반환
+      // SDK가 제공하는 text 속성만 사용 (기존 finalCleanUp 제거)
+      if (response && response.text) {
+        return response.text.trim();
       }
     } catch (error: any) {
       lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
@@ -113,13 +74,13 @@ export async function callTextApiWithFallback(
 }
 
 export async function getGemmaAdvice(elec: number, gas: number, co2: number): Promise<string> {
-  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어 3문장 이내로 조언해줘.`;
-  const systemInstruction = "너는 에너지 절약 전문가야. 분석 단계 없이 따뜻한 조언을 한국어로만 말해줘.";
+  const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
+  const systemInstruction = "너는 에너지 절약 전문가야. 분석과 따뜻한 조언을 한국어로만 말해줘.";
   return callTextApiWithFallback(prompt, GEMMA_MODELS, systemInstruction);
 }
 
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-  const systemInstruction = "너는 친구 같은 AI야. 분석이나 생각 과정 없이 오직 사용자의 말에 대한 최종 답변만 한국어로 친절하게 대답해.";
+  const systemInstruction = "너는 친구 같은 AI야. 사용자의 말에 대한 최종 답변만 한국어로 친절하게 대답해.";
   return callTextApiWithFallback(userMessage, GEMMA_MODELS, systemInstruction);
 }
 
@@ -130,6 +91,9 @@ export type ImageAnalysisResult = {
   estimated_save_kwh?: string;
 } | null;
 
+/**
+ * 이미지 분석 시 JSON 응답을 추출하기 위한 최소한의 파싱 로직은 유지합니다.
+ */
 function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
