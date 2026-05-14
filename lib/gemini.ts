@@ -38,41 +38,33 @@ function cleanAiResponse(text: string): string {
   let cleaned = text;
 
   try {
-    // 1. 태그 형태 삭제
-    const thoughtTagRegex = new RegExp(`<thought>[\\s\\S]*?<\\/thought>`, "gi");
-    const thoughtBlockRegex = new RegExp("```thought[\\s\\S]*?```", "gi");
-    cleaned = cleaned.replace(thoughtTagRegex, "").replace(thoughtBlockRegex, "");
+    // 1. 생각 과정 태그 및 블록 삭제
+    cleaned = cleaned.replace(/<(thought|details)>[\s\S]*?<\/\1>/gi, "");
+    cleaned = cleaned.replace(/```thought[\s\S]*?```/gi, "");
 
-    // 2. 줄 단위 정제 (이미지와 사용자 피드백 패턴 반영)
+    // 2. 줄 단위 정제
     const lines = cleaned.split("\n");
-    const filteredLines = lines.filter(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return false;
-
-      // 🚫 이미지에서 나타난 지저분한 라벨들 차단
-      const blacklist = [
-        "User:", "Example:", "Draft", "Constraint", "Response:", 
-        "Translation:", "Tone:", "Goal:", "A friendly", "Analysis"
-      ];
+    const filteredLines = lines.map(line => {
+      let trimmed = line.trim();
       
-      const isBlacklisted = blacklist.some(keyword => 
-        trimmed.toLowerCase().includes(keyword.toLowerCase())
-      );
+      // 🚫 블랙리스트 키워드 포함 시 삭제
+      const blacklist = ["User:", "Example:", "Response:", "Analysis:", "Tone:"];
+      if (blacklist.some(k => trimmed.toLowerCase().startsWith(k.toLowerCase()))) return "";
 
-      // 🚫 한글이 전혀 없는 줄(영어/기호만 있는 줄)은 모델의 혼잣말이므로 삭제
-      const hasKorean = /[가-힣]/.test(trimmed);
+      // 🚫 괄호 안에 한글이 없는 "영어 주석" (예: (Advice/Closing)) 강제 삭제
+      // [^가-힣]은 한글이 없는 문자열을 의미하며, / 기호 등 특수문자도 포함합니다.
+      trimmed = trimmed.replace(/\s*\([^가-힣]+\)/g, "");
 
-      return !isBlacklisted && hasKorean;
-    });
+      // 🚫 문장 시작의 번호(1., 2.)나 기호(*, -) 삭제 (선택 사항)
+      trimmed = trimmed.replace(/^[0-9+*-]+[\s.)]+/, "");
 
-    // 3. 필터링된 줄 중 가장 마지막 줄이 보통 "진짜 답변"입니다.
-    cleaned = filteredLines.length > 0 ? filteredLines[filteredLines.length - 1] : "";
+      return trimmed;
+    }).filter(line => line.length > 0 && /[가-힣]/.test(line)); // 한글이 포함된 유효한 줄만 남김
 
-    // 4. 문장 내 괄호와 그 안의 영어 내용 삭제 (예: "안녕" (Hi) -> "안녕")
-    // 이미지 1778736939573.jpeg의 패턴을 직접 타격합니다.
-    cleaned = cleaned.replace(/\s*\([A-Za-z0-9\s.,!?'"]+\)/g, "");
+    // 3. 마지막 줄만 가져오는 대신, 모든 유효한 문장을 합칩니다.
+    cleaned = filteredLines.join(" ");
 
-    // 5. 문장 앞뒤에 남은 불필요한 기호(*, ", ') 정리
+    // 4. 앞뒤 불필요한 기호 정리
     cleaned = cleaned.replace(/^[*"' ]+|[*"' ]+$/g, "");
 
   } catch (e) {
