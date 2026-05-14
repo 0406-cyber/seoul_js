@@ -36,14 +36,28 @@
 
   export async function callTextApiWithFallback(
     prompt: string,
-    models: string[] = GEMMA_MODELS
+    models: string[] = GEMMA_MODELS,
+    systemInstruction: string = "너는 친절한 AI 어시스턴트야. 생각 과정은 생략하고 한국어로 짧게 답해줘." // 기본값 설정
   ): Promise<string> {
     const apiKey = getApiKey();
     let lastErrorDetails = "알 수 없는 오류";
 
     for (const model of models) {
       const url = `${API_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+      
+      // 💡 핵심: system_instruction을 contents와 분리해서 전달
+      const payload = {
+        system_instruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          stopSequences: ["\n\n"], // 모델이 줄바꿈을 두 번 하면 강제로 끊어버림
+          temperature: 0.7
+        }
+      };
 
       try {
         const response = await fetch(url, {
@@ -59,34 +73,17 @@
           continue;
         }
 
-        const result = (await response.json()) as GenerateContentResponse;
-        const candidate = result.candidates?.[0];
-        let text = candidate?.content?.parts?.[0]?.text;
+        const result = (await response.json()) as any;
+        let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        // 1. 텍스트가 존재하는 경우 처리
-        // callTextApiWithFallback 내부 수정
         if (text) {
-          // 1. 태그 삭제
-          text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, "");
-          
-          // 2. "분석:", "Option 1:", "해설:" 등 흔한 추론 패턴 이후만 남기기
-          // 보통 "최종 답변:" 이라는 문구 뒤에 진짜 답이 오도록 유도했으므로 그 부분을 찾습니다.
-          const answerMarker = "최종 답변:";
-          if (text.includes(answerMarker)) {
-            text = text.split(answerMarker).pop() || text;
-          }
-
-          // 3. 불필요한 마크다운 기호나 줄바꿈 정리
-          text = text.replace(/\*\*분석:\*\*|Analysis:|Option \d:/gi, "");
-          
           return text.trim();
         }
         
-        // 2. 텍스트가 없거나 차단된 경우 (Safety Filter 등)
+        const candidate = result.candidates?.[0];
         const finishReason = candidate?.finishReason || "REASON_UNKNOWN";
         lastErrorDetails = `[${model}] 답변 생성 실패 (사유: ${finishReason})`;
         continue;
-
       } catch (error: any) {
         lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
         continue;
@@ -106,15 +103,10 @@
   }
 
   export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-  // 💡 모델이 헛소리할 틈을 주지 않는 시스템 명령문
-    const systemInstruction = `[필독 지시사항]
-  1. 분석, 생각 과정, 대안 제시(Option 1, 2)를 절대로 출력하지 마십시오.
-  2. 인사말도 생략하고 오직 사용자의 질문에 대한 '최종 답변'만 한국어로 한두 문장 내로 즉시 출력하십시오.
-  3. 마치 친구와 대화하듯 친절하지만 아주 짧게 대답하십시오.`;
-
-    const strictPrompt = `${systemInstruction}\n\n사용자 질문: "${userMessage}"\n\n최종 답변:`;
+    // 💡 모델의 정체성을 '생각 안 하는 챗봇'으로 규정
+    const systemInstruction = "당신은 분석이나 추론 과정을 절대로 밖으로 내뱉지 않는 챗봇입니다. 사용자의 말에 친절하고 짧게 한 문장으로만 응답하세요. 절대로 Option 1, 분석 등 구조화된 답변을 하지 마세요.";
     
-    return callTextApiWithFallback(strictPrompt, GEMMA_MODELS);
+    return callTextApiWithFallback(userMessage, GEMMA_MODELS, systemInstruction);
   }
 
   export type ImageAnalysisResult = {
