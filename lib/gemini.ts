@@ -8,16 +8,16 @@ const GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
 // 텍스트 처리를 위한 Gemma 4 모델 우선순위 리스트
 const GEMMA_TEXT_MODELS = [
-  "gemma-4-31b-it",     // 1순위: 최고 성능 Dense 모델
-  "gemma-4-26b-a4b-it", // 2순위: 빠른 속도의 MoE 모델 (Fallback용)
+  "models/gemma-4-31b-it",     // 1순위: 최고 성능 Dense 모델
+  "models/gemma-4-26b-a4b-it", // 2순위: 빠른 속도의 MoE 모델 (Fallback용)
 ];
 
 // 이미지 분석을 위한 Gemini 모델 리스트
 const GEMINI_VISION_MODELS = [
-  "gemini-3-flash-preview",
-  "gemini-2.5-flash",
-  "gemini-3.1-flash-lite-preview",
-  "gemini-3.1-flash-live-preview",
+  "models/gemini-3-flash-preview",
+  "models/gemini-3.1-flash-lite-preview",
+  "models/gemini-3.1-flash-live-preview",
+  "models/gemini-2.5-flash-lite",
 ];
 
 /**
