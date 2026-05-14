@@ -65,7 +65,8 @@ function cleanAiResponse(text: string): string {
       return !isBlacklisted && hasKorean;
     });
 
-
+    // 3. 필터링된 줄 중 가장 마지막 줄이 보통 "진짜 답변"입니다.
+    cleaned = filteredLines.length > 0 ? filteredLines[filteredLines.length - 1] : "";
 
     // 4. 문장 내 괄호와 그 안의 영어 내용 삭제 (예: "안녕" (Hi) -> "안녕")
     // 이미지 1778736939573.jpeg의 패턴을 직접 타격합니다.
