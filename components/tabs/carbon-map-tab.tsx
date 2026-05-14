@@ -30,31 +30,31 @@ interface DistrictData {
 }
 
 const SEOUL_DISTRICTS: DistrictData[] = [
-  { id: "gangnam", name: "강남구", population: 547000, households: 227000, apartmentRatio: 82, detachedRatio: 8, avgElecKwh: 320, avgGasM3: 28, co2PerHousehold: 192, color: "#dc2626" },
-  { id: "gangdong", name: "강동구", population: 453000, households: 189000, apartmentRatio: 75, detachedRatio: 12, avgElecKwh: 295, avgGasM3: 26, co2PerHousehold: 178, color: "#f97316" },
-  { id: "gangbuk", name: "강북구", population: 320000, households: 140000, apartmentRatio: 58, detachedRatio: 25, avgElecKwh: 270, avgGasM3: 24, co2PerHousehold: 163, color: "#eab308" },
-  { id: "gangseo", name: "강서구", population: 587000, households: 244000, apartmentRatio: 68, detachedRatio: 18, avgElecKwh: 285, avgGasM3: 25, co2PerHousehold: 172, color: "#84cc16" },
-  { id: "gwanak", name: "관악구", population: 510000, households: 220000, apartmentRatio: 55, detachedRatio: 28, avgElecKwh: 265, avgGasM3: 23, co2PerHousehold: 160, color: "#22c55e" },
-  { id: "gwangjin", name: "광진구", population: 368000, households: 158000, apartmentRatio: 65, detachedRatio: 18, avgElecKwh: 280, avgGasM3: 24, co2PerHousehold: 169, color: "#14b8a6" },
-  { id: "guro", name: "구로구", population: 440000, households: 185000, apartmentRatio: 62, detachedRatio: 20, avgElecKwh: 275, avgGasM3: 23, co2PerHousehold: 166, color: "#06b6d4" },
-  { id: "geumcheon", name: "금천구", population: 245000, households: 108000, apartmentRatio: 52, detachedRatio: 30, avgElecKwh: 260, avgGasM3: 22, co2PerHousehold: 157, color: "#3b82f6" },
-  { id: "nohwon", name: "노원구", population: 540000, households: 228000, apartmentRatio: 78, detachedRatio: 10, avgElecKwh: 300, avgGasM3: 27, co2PerHousehold: 182, color: "#8b5cf6" },
-  { id: "dobong", name: "도봉구", population: 338000, households: 148000, apartmentRatio: 60, detachedRatio: 22, avgElecKwh: 275, avgGasM3: 24, co2PerHousehold: 166, color: "#a855f7" },
-  { id: "dongdaemun", name: "동대문구", population: 365000, households: 158000, apartmentRatio: 58, detachedRatio: 24, avgElecKwh: 268, avgGasM3: 23, co2PerHousehold: 162, color: "#ec4899" },
-  { id: "dongjak", name: "동작구", population: 406000, households: 172000, apartmentRatio: 65, detachedRatio: 18, avgElecKwh: 278, avgGasM3: 24, co2PerHousehold: 168, color: "#f43f5e" },
-  { id: "mapo", name: "마포구", population: 385000, households: 178000, apartmentRatio: 60, detachedRatio: 15, avgElecKwh: 290, avgGasM3: 25, co2PerHousehold: 175, color: "#64748b" },
-  { id: "seodaemun", name: "서대문구", population: 327000, households: 145000, apartmentRatio: 55, detachedRatio: 22, avgElecKwh: 268, avgGasM3: 23, co2PerHousehold: 162, color: "#475569" },
-  { id: "seocho", name: "서초구", population: 450000, households: 185000, apartmentRatio: 78, detachedRatio: 10, avgElecKwh: 310, avgGasM3: 28, co2PerHousehold: 188, color: "#dc2626" },
-  { id: "seongdong", name: "성동구", population: 320000, households: 142000, apartmentRatio: 62, detachedRatio: 18, avgElecKwh: 280, avgGasM3: 24, co2PerHousehold: 169, color: "#f97316" },
-  { id: "seongbuk", name: "성북구", population: 450000, households: 195000, apartmentRatio: 58, detachedRatio: 24, avgElecKwh: 272, avgGasM3: 24, co2PerHousehold: 164, color: "#eab308" },
-  { id: "songpa", name: "송파구", population: 667000, households: 268000, apartmentRatio: 85, detachedRatio: 5, avgElecKwh: 330, avgGasM3: 29, co2PerHousehold: 198, color: "#84cc16" },
-  { id: "yangcheon", name: "양천구", population: 465000, households: 192000, apartmentRatio: 70, detachedRatio: 15, avgElecKwh: 290, avgGasM3: 26, co2PerHousehold: 175, color: "#22c55e" },
-  { id: "yeongdeungpo", name: "영등포구", population: 405000, households: 178000, apartmentRatio: 60, detachedRatio: 18, avgElecKwh: 282, avgGasM3: 25, co2PerHousehold: 170, color: "#14b8a6" },
-  { id: "yongsan", name: "용산구", population: 240000, households: 118000, apartmentRatio: 50, detachedRatio: 25, avgElecKwh: 275, avgGasM3: 24, co2PerHousehold: 166, color: "#06b6d4" },
-  { id: "eunpyeong", name: "은평구", population: 480000, households: 205000, apartmentRatio: 62, detachedRatio: 22, avgElecKwh: 275, avgGasM3: 24, co2PerHousehold: 166, color: "#3b82f6" },
-  { id: "jongno", name: "종로구", population: 160000, households: 82000, apartmentRatio: 45, detachedRatio: 30, avgElecKwh: 255, avgGasM3: 22, co2PerHousehold: 154, color: "#8b5cf6" },
-  { id: "jung", name: "중구", population: 135000, households: 72000, apartmentRatio: 48, detachedRatio: 28, avgElecKwh: 250, avgGasM3: 21, co2PerHousehold: 151, color: "#a855f7" },
-  { id: "jungnang", name: "중랑구", population: 405000, households: 175000, apartmentRatio: 60, detachedRatio: 22, avgElecKwh: 272, avgGasM3: 24, co2PerHousehold: 164, color: "#ec4899" },
+  { id: "gangnam", name: "강남구", population: 527000, households: 234000, apartmentRatio: 79, detachedRatio: 6, avgElecKwh: 490, avgGasM3: 28, co2PerHousehold: 234, color: "#dc2626" },
+  { id: "gangdong", name: "강동구", population: 462000, households: 199000, apartmentRatio: 73, detachedRatio: 10, avgElecKwh: 382, avgGasM3: 26, co2PerHousehold: 183, color: "#f97316" },
+  { id: "gangbuk", name: "강북구", population: 295000, households: 144000, apartmentRatio: 46, detachedRatio: 33, avgElecKwh: 276, avgGasM3: 24, co2PerHousehold: 132, color: "#eab308" },
+  { id: "gangseo", name: "강서구", population: 558000, households: 261000, apartmentRatio: 64, detachedRatio: 16, avgElecKwh: 345, avgGasM3: 25, co2PerHousehold: 165, color: "#84cc16" },
+  { id: "gwanak", name: "관악구", population: 485000, households: 287000, apartmentRatio: 41, detachedRatio: 38, avgElecKwh: 310, avgGasM3: 23, co2PerHousehold: 148, color: "#22c55e" },
+  { id: "gwangjin", name: "광진구", population: 336000, households: 170000, apartmentRatio: 54, detachedRatio: 24, avgElecKwh: 321, avgGasM3: 24, co2PerHousehold: 153, color: "#14b8a6" },
+  { id: "guro", name: "구로구", population: 412000, households: 185000, apartmentRatio: 57, detachedRatio: 21, avgElecKwh: 314, avgGasM3: 23, co2PerHousehold: 150, color: "#06b6d4" },
+  { id: "geumcheon", name: "금천구", population: 229000, households: 118000, apartmentRatio: 49, detachedRatio: 29, avgElecKwh: 290, avgGasM3: 22, co2PerHousehold: 139, color: "#3b82f6" },
+  { id: "nohwon", name: "노원구", population: 503000, households: 221000, apartmentRatio: 80, detachedRatio: 7, avgElecKwh: 345, avgGasM3: 27, co2PerHousehold: 165, color: "#8b5cf6" },
+  { id: "dobong", name: "도봉구", population: 307000, households: 139000, apartmentRatio: 55, detachedRatio: 23, avgElecKwh: 282, avgGasM3: 24, co2PerHousehold: 135, color: "#a855f7" },
+  { id: "dongdaemun", name: "동대문구", population: 339000, households: 170000, apartmentRatio: 52, detachedRatio: 25, avgElecKwh: 304, avgGasM3: 23, co2PerHousehold: 145, color: "#ec4899" },
+  { id: "dongjak", name: "동작구", population: 389000, households: 186000, apartmentRatio: 58, detachedRatio: 20, avgElecKwh: 324, avgGasM3: 24, co2PerHousehold: 155, color: "#f43f5e" },
+  { id: "mapo", name: "마포구", population: 364000, households: 181000, apartmentRatio: 59, detachedRatio: 16, avgElecKwh: 327, avgGasM3: 25, co2PerHousehold: 156, color: "#64748b" },
+  { id: "seodaemun", name: "서대문구", population: 308000, households: 154000, apartmentRatio: 50, detachedRatio: 25, avgElecKwh: 316, avgGasM3: 23, co2PerHousehold: 151, color: "#475569" },
+  { id: "seocho", name: "서초구", population: 412000, households: 181000, apartmentRatio: 76, detachedRatio: 8, avgElecKwh: 436, avgGasM3: 28, co2PerHousehold: 208, color: "#dc2626" },
+  { id: "seongdong", name: "성동구", population: 285000, households: 138000, apartmentRatio: 61, detachedRatio: 16, avgElecKwh: 320, avgGasM3: 24, co2PerHousehold: 153, color: "#f97316" },
+  { id: "seongbuk", name: "성북구", population: 429000, households: 197000, apartmentRatio: 50, detachedRatio: 28, avgElecKwh: 334, avgGasM3: 24, co2PerHousehold: 160, color: "#eab308" },
+  { id: "songpa", name: "송파구", population: 647000, households: 286000, apartmentRatio: 84, detachedRatio: 4, avgElecKwh: 416, avgGasM3: 29, co2PerHousehold: 199, color: "#84cc16" },
+  { id: "yangcheon", name: "양천구", population: 441000, households: 181000, apartmentRatio: 71, detachedRatio: 11, avgElecKwh: 352, avgGasM3: 26, co2PerHousehold: 168, color: "#22c55e" },
+  { id: "yeongdeungpo", name: "영등포구", population: 376000, households: 190000, apartmentRatio: 55, detachedRatio: 19, avgElecKwh: 320, avgGasM3: 25, co2PerHousehold: 153, color: "#14b8a6" },
+  { id: "yongsan", name: "용산구", population: 218000, households: 111000, apartmentRatio: 44, detachedRatio: 31, avgElecKwh: 333, avgGasM3: 24, co2PerHousehold: 159, color: "#06b6d4" },
+  { id: "eunpyeong", name: "은평구", population: 468000, households: 214000, apartmentRatio: 55, detachedRatio: 27, avgElecKwh: 309, avgGasM3: 24, co2PerHousehold: 148, color: "#3b82f6" },
+  { id: "jongno", name: "종로구", population: 141000, households: 80000, apartmentRatio: 38, detachedRatio: 39, avgElecKwh: 271, avgGasM3: 22, co2PerHousehold: 130, color: "#8b5cf6" },
+  { id: "jung", name: "중구", population: 121000, households: 67000, apartmentRatio: 42, detachedRatio: 33, avgElecKwh: 264, avgGasM3: 21, co2PerHousehold: 126, color: "#a855f7" },
+  { id: "jungnang", name: "중랑구", population: 381000, households: 179000, apartmentRatio: 53, detachedRatio: 24, avgElecKwh: 290, avgGasM3: 24, co2PerHousehold: 139, color: "#ec4899" },
 ]
 
 // Fix geumcheon - has detachedRating instead of detachedRatio
@@ -429,10 +429,27 @@ export function CarbonMapTab() {
                 <span className="text-sm font-bold">서울시 탄소맵 인사이트</span>
               </div>
               <ul className="text-xs text-muted-foreground space-y-1.5 leading-relaxed">
-                <li>• <strong>송파구</strong>와 <strong>강남구</strong>가 가구당 CO₂ 배출량이 가장 높습니다 (198kg, 192kg). 아파트 밀집 지역의 특성상 세대당 면적이 넓고 에너지 사용량이 많은 것으로 분석됩니다.</li>
-                <li>• <strong>종로구</strong>와 <strong>중구</strong>는 상대적으로 배출량이 낮습니다 (154kg, 151kg). 원룸·오피스텔 등 소형 주거 비율이 높고, 도심 특성상 외부 활동 비중이 크기 때문입니다.</li>
-                <li>• <strong>단독주택 비율이 높은 지역</strong>은 개별 난방 구조로 인해 가스 사용량이 많지만, 태양광 패널·단열 개선 등 개별 조치의 효과가 큰 지역입니다.</li>
-                <li>• <strong>아파트 비율이 높은 지역</strong>은 공동 난방으로 효율이 좋지만, 전체 세대수가 많아 지역 전체 배출량은 큽니다. 공용 전력 절감 캠페인이 효과적입니다.</li>
+                <li>
+                  • <strong>강남구</strong>, <strong>송파구</strong>, <strong>서초구</strong>는 가구당 CO₂ 배출량이 가장 높은 지역입니다 
+                  (234kg, 199kg, 208kg). 아파트 비율이 매우 높고(76~84%), 평균 주거면적과 전력 사용량이 커 냉난방·가전 소비가 많은 것으로 나타납니다.
+                </li>
+
+                <li>
+                  • <strong>종로구</strong>, <strong>중구</strong>, <strong>강북구</strong>는 상대적으로 배출량이 낮습니다 
+                  (130kg, 126kg, 132kg). 소형 주택·다가구 주택 비율이 높고 평균 전력 사용량이 낮아 가구당 에너지 소비 규모가 작은 편입니다.
+                </li>
+
+                <li>
+                  • <strong>관악구</strong>, <strong>종로구</strong>, <strong>용산구</strong>처럼 단독·다가구 주택 비율이 높은 지역은 
+                  개별 난방 사용으로 가스 소비 편차가 크지만, 단열 개선·창호 교체·태양광 설치 등 개별 에너지 절감 정책의 효과가 크게 나타날 수 있습니다.
+                </li>
+
+                <li>
+                  • <strong>송파구</strong>, <strong>노원구</strong>, <strong>강남구</strong> 등 대단지 아파트 비율이 높은 지역은 
+                  공동주택 에너지 효율이 높아 세대당 난방 효율은 우수하지만, 전체 세대 수가 많아 총 지역 배출량은 서울에서 가장 높은 수준입니다. 
+                  승강기·지하주차장·공용조명 절전 정책이 효과적인 지역입니다.
+                </li>
+              </ul>
               </ul>
             </div>
           </Card>
@@ -457,7 +474,7 @@ export function CarbonMapTab() {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground mt-2">
-          ※ 데이터는 한국환경공단·한국전력 통계를 기반으로 한 시뮬레이션 값입니다. 실제 지역별 차이는 주거 형태, 가구 규모, 생활 패턴에 따라 다를 수 있습니다.
+          ※ 데이터는 통계청 24년도 데이터 기준으로 넣어놨고, 최근 값 찾으면 변경하면 될 것 같습니다!
         </p>
       </Card>
     </div>

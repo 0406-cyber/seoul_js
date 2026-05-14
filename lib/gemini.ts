@@ -55,7 +55,6 @@ export async function callTextApiWithFallback(
         systemInstruction: systemInstruction,
         contents: prompt,
         config: {
-          stopSequences: ["\n\n"],
           temperature: 0.6,
         }
       });
@@ -75,12 +74,12 @@ export async function callTextApiWithFallback(
 
 export async function getGemmaAdvice(elec: number, gas: number, co2: number): Promise<string> {
   const prompt = `사용자가 이번 달에 전기 ${elec}kWh, 가스 ${gas}m3를 사용하여 총 ${co2.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
-  const systemInstruction = "너는 에너지 절약 전문가야. 분석과 따뜻한 조언을 한국어로만 말해줘.";
+  const systemInstruction = "너는 에너지 절약 전문가야. 분석과 따뜻한 조언을 한국어로만 짧게 말해줘.";
   return callTextApiWithFallback(prompt, GEMMA_MODELS, systemInstruction);
 }
 
 export async function askGemmaCustomQuestion(userMessage: string): Promise<string> {
-  const systemInstruction = "너는 친구 같은 AI야. 사용자의 말에 대한 최종 답변만 한국어로 친절하게 대답해.";
+  const systemInstruction = "너는 친구 같은 AI야. 사용자의 말에 대한 최종 답변만 한국어로 친절하게 짧게 대답해.";
   return callTextApiWithFallback(userMessage, GEMMA_MODELS, systemInstruction);
 }
 
