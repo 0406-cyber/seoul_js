@@ -59,20 +59,24 @@
           continue;
         }
 
-        const result = (await response.json()) as any;
+        const result = (await response.json()) as GenerateContentResponse;
         const candidate = result.candidates?.[0];
-        const text = candidate?.content?.parts?.[0]?.text;
+        let text = candidate?.content?.parts?.[0]?.text;
 
+        // 1. 텍스트가 존재하는 경우 처리
         if (text) {
-          return text;
-        } else {
-          // 💡 텍스트가 없는 경우 (대부분 안전 필터링에 의한 차단)
-          const finishReason = candidate?.finishReason || "REASON_UNKNOWN";
-          lastErrorDetails = `[${model}] 답변 생성 실패 (사유: ${finishReason})`;
+          // 💡 <thought> 태그 및 내부 내용 삭제
+          text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, "").trim();
           
-          // 차단 사유가 SAFETY라면 다른 모델도 차단될 확률이 높지만, 일단 계속 진행
-          continue;
+          // 💡 생각 과정을 다 지웠는데 빈 문자열인 경우도 고려
+          if (text) return text;
         }
+        
+        // 2. 텍스트가 없거나 차단된 경우 (Safety Filter 등)
+        const finishReason = candidate?.finishReason || "REASON_UNKNOWN";
+        lastErrorDetails = `[${model}] 답변 생성 실패 (사유: ${finishReason})`;
+        continue;
+
       } catch (error: any) {
         lastErrorDetails = `[${model} 예외 발생] ${error.message}`;
         continue;
