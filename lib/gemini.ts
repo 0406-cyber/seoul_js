@@ -1,4 +1,4 @@
-import { GoogleGenAI, Part } from "@google/genai";
+import { GoogleGenAI} from "@google/genai";
 
 /**
  * 공식 SDK를 사용하여 모델의 응답을 깔끔하게 가져옵니다.
