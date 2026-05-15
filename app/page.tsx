@@ -92,6 +92,7 @@ function MainContent() {
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false)
   const [points, setPoints] = useState<number>(100)
 
+  // 1. 초기 마운트 시 로컬 스토리지 확인
   useEffect(() => {
     setMounted(true)
     const savedName = localStorage.getItem("eco_nickname");
@@ -99,7 +100,7 @@ function MainContent() {
       const sessionFlag = sessionStorage.getItem("eco_session");
       if (!sessionFlag) {
         localStorage.removeItem("eco_nickname");
-        toast.info("세션이 만료되어 로그아웃되었습니다.");
+        // toast.info("세션이 만료되어 로그아웃되었습니다."); // 불필요한 알림 방지
         return;
       }
       setNickname(savedName)
@@ -151,10 +152,13 @@ function MainContent() {
     }
   }, []);
 
+  // 2. 닉네임이 확정되면 즉시 로컬 기록을 불러오고 서버와 동기화
   useEffect(() => {
     if (!nickname || !mounted) return;
 
-    setUsageHistory(loadUsageHistory(nickname));
+    // 로컬 데이터를 먼저 로드하여 '0'으로 뜨는 현상 방지
+    const localHistory = loadUsageHistory(nickname);
+    setUsageHistory(localHistory);
 
     const syncWithServer = async () => {
       try {
@@ -243,6 +247,10 @@ function MainContent() {
     sessionStorage.setItem("eco_session", "active");
     setNickname(name);
     setIsOnboarded(true);
+    
+    // 온보딩 완료 즉시 해당 유저의 로컬 기록 로드
+    const localHistory = loadUsageHistory(name);
+    setUsageHistory(localHistory);
   
     try {
       const remoteData = await getLeaderboardViaApi();
@@ -260,10 +268,8 @@ function MainContent() {
       await loginUser(name);
     } catch (e: any) {
       console.error("로그인 동기화 에러:", e.message);
-      setPoints(100); 
+      setPoints(loadPoints(name, 100)); 
     }
-    
-    setUsageHistory(loadUsageHistory(name));
   }, [recordPoint]);
 
   const checkIsExistingUser = useCallback(async (name: string) => {
@@ -789,7 +795,7 @@ function MainContent() {
     )
   }
 
-  const todayYmd = new Date().toISOString().slice(0, 10)
+  // const todayYmd = new Date().toISOString().slice(0, 10)
   // const hasUsageToday = usageHistory.some((u) => u.date === todayYmd)
 
   return (
