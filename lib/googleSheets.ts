@@ -597,3 +597,30 @@ export async function getSystemLogs(): Promise<any[]> {
     return [];
   }
 }
+/** 사용자의 에너지 사용 기록 불러오기 (usage 탭) */
+export async function getUsageHistory(username: string): Promise<any[]> {
+  try {
+    const { token, spreadsheetId } = await getAccessToken();
+    const range = encodeURIComponent("usage!A:E");
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+    const data = await res.json();
+    const rows = data.values || [];
+    
+    if (rows.length <= 1) return [];
+
+    // 사용자의 이름과 일치하는 행만 필터링하여 반환
+    return rows.slice(1)
+      .filter((row: any) => row[0] === username)
+      .map((row: any) => ({
+        date: row[1] || "",
+        elec_kwh: safeParseFloat(row[2]),
+        gas_m3: safeParseFloat(row[3]),
+        co2_kg: safeParseFloat(row[4]),
+      }));
+  } catch (e) {
+    console.error("기록 불러오기 실패:", e);
+    return [];
+  }
+}
