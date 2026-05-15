@@ -441,41 +441,71 @@ function MainContent() {
   }, [messages]);
 
   const handleRequestAdvice = useCallback(async () => {
-    setIsCoachingLoading(true)
-    try {
-      if (usageHistory.length === 0) {
+      setIsCoachingLoading(true);
+      try {
+        if (usageHistory.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: "먼저 '에너지 사용 분석' 탭에서 데이터를 기록해주세요.",
+            },
+          ]);
+          setIsCoachingLoading(false);
+          return;
+        }
+
+        const latest = usageHistory[usageHistory.length - 1];
+        
+        // 구버전 getGemmaAdvice 함수 대신 사용할 직접 프롬프트 작성
+        const prompt = `사용자가 이번 달에 전기 ${latest.elec_kwh}kWh, 가스 ${latest.gas_m3}m3를 사용하여 총 ${latest.co2_kg.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
+
+        const assistantMessageId = Date.now().toString();
+        
+        // 스트리밍 답변이 들어갈 빈 말풍선 먼저 추가
         setMessages((prev) => [
           ...prev,
-          {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: "먼저 '에너지 사용 분석' 탭에서 데이터를 기록해주세요.",
-          },
-        ])
-        return
+          { id: assistantMessageId, role: "assistant", content: "" }
+        ]);
+
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            message: prompt,
+            history: [] // 새로운 분석이므로 이전 대화 문맥 초기화
+          }),
+        });
+
+        if (!res.body) throw new Error("응답 본문이 없습니다.");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let done = false;
+
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            
+            setMessages((prev) => 
+              prev.map((msg) => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: msg.content + chunk } 
+                  : msg
+              )
+            );
+          }
+        }
+      } catch (e: any) {
+        toast.error("조언 요청 실패: " + e.message);
+      } finally {
+        setIsCoachingLoading(false);
       }
-
-      const latest = usageHistory[usageHistory.length - 1]
-      const advice = await getGemmaAdvice(
-        latest.elec_kwh,
-        latest.gas_m3,
-        latest.co2_kg
-      )
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: advice,
-        },
-      ])
-    } catch (e: any) {
-      toast.error("조언 요청 실패: " + e.message)
-    } finally {
-      setIsCoachingLoading(false)
-    }
-  }, [usageHistory])
-
+    }, [usageHistory]);
   const handleCertify = useCallback(async (): Promise<{
     ok: boolean
     earnedPoints?: number
