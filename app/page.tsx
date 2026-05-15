@@ -92,7 +92,6 @@ function MainContent() {
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false)
   const [points, setPoints] = useState<number>(100)
 
-  // 1. 초기 마운트 시 로컬 스토리지 확인
   useEffect(() => {
     setMounted(true)
     const savedName = localStorage.getItem("eco_nickname");
@@ -100,7 +99,6 @@ function MainContent() {
       const sessionFlag = sessionStorage.getItem("eco_session");
       if (!sessionFlag) {
         localStorage.removeItem("eco_nickname");
-        // toast.info("세션이 만료되어 로그아웃되었습니다."); // 불필요한 알림 방지
         return;
       }
       setNickname(savedName)
@@ -152,13 +150,20 @@ function MainContent() {
     }
   }, []);
 
-  // 2. 닉네임이 확정되면 즉시 로컬 기록을 불러오고 서버와 동기화
+  // 닉네임이 확정되면 데이터를 불러오고 필드 초기화
   useEffect(() => {
     if (!nickname || !mounted) return;
 
-    // 로컬 데이터를 먼저 로드하여 '0'으로 뜨는 현상 방지
     const localHistory = loadUsageHistory(nickname);
     setUsageHistory(localHistory);
+
+    // ✅ [수정] 기존 기록이 있다면 가장 최근 데이터를 입력 필드와 요약 수치에 반영
+    if (localHistory.length > 0) {
+      const last = localHistory[localHistory.length - 1];
+      setCarbonEmission(last.co2_kg);
+      setElectricityUsage(last.elec_kwh.toString());
+      setGasUsage(last.gas_m3.toString());
+    }
 
     const syncWithServer = async () => {
       try {
@@ -248,9 +253,16 @@ function MainContent() {
     setNickname(name);
     setIsOnboarded(true);
     
-    // 온보딩 완료 즉시 해당 유저의 로컬 기록 로드
     const localHistory = loadUsageHistory(name);
     setUsageHistory(localHistory);
+    
+    // ✅ [수정] 온보딩 직후에도 기존 데이터가 있다면 필드 초기화
+    if (localHistory.length > 0) {
+      const last = localHistory[localHistory.length - 1];
+      setCarbonEmission(last.co2_kg);
+      setElectricityUsage(last.elec_kwh.toString());
+      setGasUsage(last.gas_m3.toString());
+    }
   
     try {
       const remoteData = await getLeaderboardViaApi();
@@ -375,7 +387,6 @@ function MainContent() {
     }
   }, [nickname, electricityUsage, gasUsage])
 
-  // ✨ 스트리밍 API를 호출하도록 개선된 채팅 로직
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -385,13 +396,11 @@ function MainContent() {
     
     const assistantMessageId = (Date.now() + 1).toString();
     
-    // API 전송용 히스토리 구성 (현재 사용자 입력 이전까지의 대화)
     const historyForApi = messages.map((msg) => ({
       role: msg.role === "assistant" ? "model" as const : "user" as const,
       parts: [{ text: msg.content }],
     }));
 
-    // 사용자 메시지와 내용이 비어있는 AI 메시지를 한 번에 추가
     setMessages((prev) => [
       ...prev, 
       userMessage, 
@@ -422,7 +431,6 @@ function MainContent() {
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
           
-          // 받아온 chunk를 실시간으로 마지막 메시지에 이어붙임
           setMessages((prev) => 
             prev.map((msg) => 
               msg.id === assistantMessageId 
@@ -463,13 +471,10 @@ function MainContent() {
         }
 
         const latest = usageHistory[usageHistory.length - 1];
-        
-        // 구버전 getGemmaAdvice 함수 대신 사용할 직접 프롬프트 작성
         const prompt = `사용자가 이번 달에 전기 ${latest.elec_kwh}kWh, 가스 ${latest.gas_m3}m3를 사용하여 총 ${latest.co2_kg.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
 
         const assistantMessageId = Date.now().toString();
         
-        // 스트리밍 답변이 들어갈 빈 말풍선 먼저 추가
         setMessages((prev) => [
           ...prev,
           { id: assistantMessageId, role: "assistant", content: "" }
@@ -480,7 +485,7 @@ function MainContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             message: prompt,
-            history: [] // 새로운 분석이므로 이전 대화 문맥 초기화
+            history: [] 
           }),
         });
 
@@ -512,6 +517,7 @@ function MainContent() {
         setIsCoachingLoading(false);
       }
     }, [usageHistory]);
+
   const handleCertify = useCallback(async (): Promise<{
     ok: boolean
     earnedPoints?: number
@@ -795,9 +801,6 @@ function MainContent() {
     )
   }
 
-  // const todayYmd = new Date().toISOString().slice(0, 10)
-  // const hasUsageToday = usageHistory.some((u) => u.date === todayYmd)
-
   return (
     <AppShell>
       <AppHeader
@@ -812,8 +815,6 @@ function MainContent() {
       />
 
       <AppContainer className="py-6">
-        {/* 오늘의 미션은 seoul_min에서 비활성화되었습니다. */}
-
         {activeTab === "analysis" && (
           <AnalysisTab
             electricityUsage={electricityUsage}
@@ -827,7 +828,6 @@ function MainContent() {
           />
         )}
 
-        {/* 비활성화된 탭: 필요한 경우 주석 해제해서 다시 사용할 수 있습니다. */}
         {/* {activeTab === "water" && <WaterFootprintTab />} */}
 
         {activeTab === "coaching" && (
