@@ -28,7 +28,8 @@ import {
   getPointLogs,
   getSystemLogs,
   getAllOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  getUsageHistory // 👈 새로 추가된 함수 임포트
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -150,23 +151,25 @@ function MainContent() {
     }
   }, []);
 
-  // 닉네임이 확정되면 데이터를 불러오고 필드 초기화
+  // ✅ 닉네임 인식 시 구글 시트 데이터와 동기화
   useEffect(() => {
     if (!nickname || !mounted) return;
 
-    const localHistory = loadUsageHistory(nickname);
-    setUsageHistory(localHistory);
-
-    // ✅ [수정] 기존 기록이 있다면 가장 최근 데이터를 입력 필드와 요약 수치에 반영
-    if (localHistory.length > 0) {
-      const last = localHistory[localHistory.length - 1];
-      setCarbonEmission(last.co2_kg);
-      setElectricityUsage(last.elec_kwh.toString());
-      setGasUsage(last.gas_m3.toString());
-    }
-
     const syncWithServer = async () => {
       try {
+        // 1. 구글 시트에서 에너지 사용 기록 가져오기 (가장 최근 데이터 반영)
+        const serverHistory = await getUsageHistory(nickname);
+        if (serverHistory && serverHistory.length > 0) {
+          setUsageHistory(serverHistory);
+          const last = serverHistory[serverHistory.length - 1];
+          setCarbonEmission(last.co2_kg);
+          setElectricityUsage(String(last.elec_kwh));
+          setGasUsage(String(last.gas_m3));
+        } else {
+          setUsageHistory(loadUsageHistory(nickname));
+        }
+
+        // 2. 리더보드 및 포인트 동기화
         const remoteData = await getLeaderboardViaApi();
         setRemoteUsers(remoteData);
         
@@ -176,6 +179,7 @@ function MainContent() {
           savePoints(nickname, myData.points); 
         }
 
+        // 3. 포인트 로그 동기화
         const serverLogs = await getPointLogs(nickname);
         if (serverLogs && serverLogs.length > 0) {
           setPointHistory(serverLogs);
@@ -252,17 +256,6 @@ function MainContent() {
     sessionStorage.setItem("eco_session", "active");
     setNickname(name);
     setIsOnboarded(true);
-    
-    const localHistory = loadUsageHistory(name);
-    setUsageHistory(localHistory);
-    
-    // ✅ [수정] 온보딩 직후에도 기존 데이터가 있다면 필드 초기화
-    if (localHistory.length > 0) {
-      const last = localHistory[localHistory.length - 1];
-      setCarbonEmission(last.co2_kg);
-      setElectricityUsage(last.elec_kwh.toString());
-      setGasUsage(last.gas_m3.toString());
-    }
   
     try {
       const remoteData = await getLeaderboardViaApi();
@@ -595,7 +588,7 @@ function MainContent() {
       return (
         <AppShell>
           <div className="min-h-screen flex flex-col items-center justify-center p-4">
-            <div className="bg-card p-8 rounded-2xl border border-border w-full max-w-sm flex flex-col gap-6 shadow-lg">
+            <div className="bg-card p-8 rounded-2xl border border-border w-full max-sm flex flex-col gap-6 shadow-lg">
               <div>
                 <h2 className="text-xl font-bold text-foreground">🔒 관리자 권한 인증</h2>
                 <p className="text-sm text-muted-foreground mt-2">대시보드에 접근하려면 비밀번호가 필요합니다.</p>
@@ -709,7 +702,7 @@ function MainContent() {
               </div>
               
               <div className="bg-background rounded-xl border border-border overflow-hidden">
-                {isAdminLogsLoading ? (
+                {isAdminOrdersLoading ? (
                   <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
                     주문 데이터를 불러오는 중입니다...
                   </div>
