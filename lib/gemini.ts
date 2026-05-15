@@ -157,3 +157,38 @@ export async function analyzeImageWithGemini(
   }
   return { result: null, error: `상세 에러: ${lastErrorDetails}` };
 }
+
+// ============================================================================
+// [추가된 기능] 멀티턴 대화 및 스트리밍 처리
+// ============================================================================
+
+/**
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환하는 제너레이터 함수입니다.
+ * @param message 사용자 입력 메시지
+ * @param history 이전 대화 내역 배열 (role과 parts 객체 구조)
+ * @param modelName 사용할 모델 (기본값: gemini-3-flash-preview)
+ */
+export async function* streamChatWithMessage(
+  message: string,
+  history: { role: "user" | "model"; parts: { text: string }[] }[] = [],
+  modelName: string = "gemini-3-flash-preview"
+) {
+  const ai = getAI();
+  if (!ai) throw new Error("⚠️ Gemini API Key가 설정되지 않았습니다.");
+
+  // 대화 세션 생성 (이전 기록 포함)
+  const chat = ai.chats.create({
+    model: modelName,
+    history: history,
+  });
+
+  // 스트리밍으로 메시지 전송
+  const stream = await chat.sendMessageStream({ message });
+
+  // 청크(chunk) 단위로 텍스트가 들어올 때마다 반환(yield)
+  for await (const chunk of stream) {
+    if (chunk.text) {
+      yield chunk.text;
+    }
+  }
+}

@@ -2,13 +2,13 @@
 
 import { useState, useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import dynamic from "next/dynamic" // ✨ 지도 SSR 오류 방지를 위해 추가
 import { Moon, Sun } from "lucide-react"
 import { toast } from "sonner"
 import { useTheme } from "next-themes"
 import { BottomNav } from "@/components/bottom-nav"
 import { AnalysisTab } from "@/components/tabs/analysis-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
-import { CarbonMapTab } from "@/components/tabs/carbon-map-tab"
 import { CertificationTab } from "@/components/tabs/certification-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
 // import { DailyMissionsCard } from "@/components/daily-missions-card"
@@ -32,7 +32,6 @@ import {
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
-  askGemmaCustomQuestion,
   analyzeImageWithGemini,
 } from "@/lib/gemini"
 import { loadUsageHistory, appendUsageLocal, type UsageRecord } from "@/lib/usage-storage"
@@ -45,6 +44,15 @@ import {
   type PointHistoryItem,
 } from "@/components/app/point-history-modal"
 import { getTabMeta } from "@/lib/tab-meta"
+
+// 🌍 CarbonMapTab을 다이나믹 임포트로 설정 (지도 라이브러리의 window 객체 참조 오류 방지)
+const CarbonMapTab = dynamic(
+  () => import("@/components/tabs/carbon-map-tab").then((mod) => mod.CarbonMapTab),
+  { 
+    ssr: false, 
+    loading: () => <div className="h-[600px] w-full bg-secondary/30 animate-pulse rounded-[32px] flex items-center justify-center text-muted-foreground font-bold">지도를 불러오는 중입니다...</div> 
+  }
+);
 
 interface Message {
   id: string
@@ -72,7 +80,6 @@ function MainContent() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // 1. URL 기반 라우팅 로직 추가
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeTab = searchParams.get("tab") || "analysis"
@@ -89,7 +96,6 @@ function MainContent() {
     setMounted(true)
     const savedName = localStorage.getItem("eco_nickname");
     if (savedName) {
-      // sessionStorage에 세션 플래그가 없으면 창을 닫았다 다시 연 것이므로 로그아웃
       const sessionFlag = sessionStorage.getItem("eco_session");
       if (!sessionFlag) {
         localStorage.removeItem("eco_nickname");
@@ -131,7 +137,7 @@ function MainContent() {
     setPointHistory(prev => {
       const newItem: PointHistoryItem = {
         id: Date.now().toString(),
-        date: new Date().toLocaleDateString("ko-KR") + " " + new Date().toLocaleTimeString("ko-KR", {hour: '2-digit', minute:'2-digit'}),
+        date: new Date().toLocaleDateString("ko-KR") + " " + new Date().toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"}),
         description: desc,
         amount: amt
       };
@@ -175,9 +181,9 @@ function MainContent() {
 
   useEffect(() => {
     if (isOnboarded && nickname && nickname !== "admin") {
-      fetch('/api/syslog', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      fetch("/api/syslog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: `접속 (${nickname})` })
       }).catch(() => {});
     }
@@ -201,8 +207,9 @@ function MainContent() {
   }, [nickname, isAdminAuthenticated]);
 
   useEffect(() => {
-    if (!nickname) return;
-    savePoints(nickname, points);
+    if (nickname) {
+      savePoints(nickname, points);
+    }
   }, [nickname, points]);
 
   const chartData = useMemo(
@@ -247,7 +254,7 @@ function MainContent() {
       } else {
         setPoints(100);
         recordPoint(name, "신규 가입 보너스", 100);
-        toast.success("가입을 축하합니다! 시작 포인트 100P가 지급되었습니다.");
+        toast.success("가입을 축하합니다! 시작 포인트 100P 가 지급되었습니다.");
       }
       
       await loginUser(name);
@@ -268,15 +275,6 @@ function MainContent() {
     }
   }, []);
 
-  /* 비활성화된 기능: 피드 보상 포인트는 현재 seoul_min에서 사용되지 않습니다.
-  const awardPoints = useCallback((delta: number, reason: string) => {
-    setPoints((p) => p + delta);
-    if (nickname) {
-      recordPoint(nickname, reason, delta);
-    }
-  }, [nickname, recordPoint])
-  */
-
   const grantPoints = useCallback(
     async (delta: number, reason: string) => {
       if (!nickname) return
@@ -285,7 +283,7 @@ function MainContent() {
       try {
         await updateUserPoints(nickname, delta)
       } catch {
-        // best effort (offline/local-first)
+        // best effort
       }
     },
     [nickname, recordPoint]
@@ -361,7 +359,7 @@ function MainContent() {
       setUsageHistory(next)
 
       await saveUsage(nickname, electricity, gas, emission)
-      toast.success("데이터가 성공적으로 기록되었습니다!")
+      toast.success("데이터가 성공적으로 기록되었습니다!");
       
     } catch (e: any) {
       console.error("계산/저장 에러:", e.message);
@@ -371,30 +369,76 @@ function MainContent() {
     }
   }, [nickname, electricityUsage, gasUsage])
 
+  // ✨ 스트리밍 API를 호출하도록 개선된 채팅 로직
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content,
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setIsCoachingLoading(true)
+    };
+    
+    const assistantMessageId = (Date.now() + 1).toString();
+    
+    // API 전송용 히스토리 구성 (현재 사용자 입력 이전까지의 대화)
+    const historyForApi = messages.map((msg) => ({
+      role: msg.role === "assistant" ? "model" as const : "user" as const,
+      parts: [{ text: msg.content }],
+    }));
+
+    // 사용자 메시지와 내용이 비어있는 AI 메시지를 한 번에 추가
+    setMessages((prev) => [
+      ...prev, 
+      userMessage, 
+      { id: assistantMessageId, role: "assistant", content: "" }
+    ]);
+    setIsCoachingLoading(true);
+
     try {
-      const response = await askGemmaCustomQuestion(content)
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: response,
-        },
-      ])
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: content,
+          history: historyForApi
+        }),
+      });
+
+      if (!res.body) throw new Error("응답 본문이 없습니다.");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          
+          // 받아온 chunk를 실시간으로 마지막 메시지에 이어붙임
+          setMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + chunk } 
+                : msg
+            )
+          );
+        }
+      }
     } catch (e: any) {
-      toast.error("AI 응답 실패: " + e.message)
+      toast.error("AI 응답 실패: " + e.message);
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: "⚠️ 통신 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." } 
+            : msg
+        )
+      );
     } finally {
-      setIsCoachingLoading(false)
+      setIsCoachingLoading(false);
     }
-  }, [])
+  }, [messages]);
 
   const handleRequestAdvice = useCallback(async () => {
     setIsCoachingLoading(true)
@@ -451,7 +495,7 @@ function MainContent() {
 
       if (String(result.action_found).toLowerCase() !== "true") {
         toast.warning(
-          "AI가 사진에서 명확한 에너지 절약 행동을 인식하지 못했습니다."
+          "AI 가 사진에서 명확한 에너지 절약 행동을 인식하지 못했습니다."
         )
         return { ok: false, error: "no_action" }
       }
@@ -510,33 +554,33 @@ function MainContent() {
         <AppShell>
           <div className="min-h-screen flex flex-col items-center justify-center p-4">
             <div className="bg-card p-8 rounded-2xl border border-border w-full max-w-sm flex flex-col gap-6 shadow-lg">
-            <div>
-              <h2 className="text-xl font-bold text-foreground">🔒 관리자 권한 인증</h2>
-              <p className="text-sm text-muted-foreground mt-2">대시보드에 접근하려면 비밀번호가 필요합니다.</p>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">🔒 관리자 권한 인증</h2>
+                <p className="text-sm text-muted-foreground mt-2">대시보드에 접근하려면 비밀번호가 필요합니다.</p>
+              </div>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="관리자 비밀번호 입력"
+                className="bg-background text-foreground border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary w-full"
+                onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+              />
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleAdminLogin}
+                  className="bg-primary text-primary-foreground font-bold rounded-xl p-3 hover:bg-primary/90 transition w-full"
+                >
+                  인증하기
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="bg-secondary text-secondary-foreground font-bold rounded-xl p-3 hover:bg-secondary/80 transition w-full"
+                >
+                  이전으로 돌아가기
+                </button>
+              </div>
             </div>
-            <input
-              type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="관리자 비밀번호 입력"
-              className="bg-background text-foreground border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary w-full"
-              onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            />
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={handleAdminLogin}
-                className="bg-primary text-primary-foreground font-bold rounded-xl p-3 hover:bg-primary/90 transition w-full"
-              >
-                인증하기
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-secondary text-secondary-foreground font-bold rounded-xl p-3 hover:bg-secondary/80 transition w-full"
-              >
-                이전으로 돌아가기
-              </button>
-            </div>
-          </div>
           </div>
         </AppShell>
       )
@@ -546,169 +590,169 @@ function MainContent() {
       <AppShell>
         <AppContainer className="pt-8 pb-12">
           <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
-            <div className="flex gap-2">
-               <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 bg-secondary rounded-xl">
-                  {theme === 'dark' ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
-               </button>
-               <button onClick={handleAdminLogout} className="text-sm bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-medium hover:bg-secondary/80 transition-colors">로그아웃</button>
-            </div>
-          </div>
-          
-          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
-            <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
-              <span className="text-sm text-muted-foreground">현재 활성 가입자 수</span>
-              <span className="text-lg font-bold text-foreground">
-                {leaderboard ? Math.max(0, leaderboard.length - 1) : 0} 명
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
-              <span className="text-xs font-medium bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md">Cloudflare Edge Logs</span>
+              <h1 className="text-2xl font-bold text-foreground">🛠️ 통합 관리자 대시보드</h1>
+              <div className="flex gap-2">
+                <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 bg-secondary rounded-xl">
+                  {theme === "dark" ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
+                </button>
+                <button onClick={handleAdminLogout} className="text-sm bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-medium hover:bg-secondary/80 transition-colors">로그아웃</button>
+              </div>
             </div>
             
-            <div className="bg-background rounded-xl border border-border overflow-hidden">
-              {isAdminLogsLoading ? (
-                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
-                  네트워크 로그를 분석 중입니다...
-                </div>
-              ) : sysLogs.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  수집된 시스템 로그가 없습니다.
-                </div>
-              ) : (
-                <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
-                      <tr>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
-                        <th className="px-4 py-3 font-medium">활동</th>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">접속 IP</th>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">국가</th>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap text-right">디바이스</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border font-mono">
-                      {sysLogs.slice(0, 50).map((log) => (
-                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs font-sans">{log.date}</td>
-                          <td className="px-4 py-3 font-medium text-xs whitespace-nowrap">
-                            <span className="bg-secondary px-2 py-1 rounded text-foreground">{log.action}</span>
-                          </td>
-                          <td className="px-4 py-3 text-xs tracking-wider">{log.ip}</td>
-                          <td className="px-4 py-3 text-xs">
-                            {log.country === 'KR' ? '🇰🇷 KR' : `🌍 ${log.country}`}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-right whitespace-nowrap text-muted-foreground font-sans">
-                            {log.device}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+              <h2 className="text-lg font-bold text-foreground">👥 전체 사용자 기본 현황</h2>
+              <div className="flex justify-between items-center bg-background p-4 rounded-xl border border-border">
+                <span className="text-sm text-muted-foreground">현재 활성 가입자 수</span>
+                <span className="text-lg font-bold text-foreground">
+                  {leaderboard ? Math.max(0, leaderboard.length - 1) : 0} 명
+                </span>
+              </div>
             </div>
-          </div>
 
-          <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">� 상품 교환 주문 관리</h2>
-              <span className="text-xs text-muted-foreground">최근 100건</span>
-            </div>
-            
-            <div className="bg-background rounded-xl border border-border overflow-hidden">
-              {isAdminLogsLoading ? (
-                <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
-                  주문 데이터를 불러오는 중입니다...
-                </div>
-              ) : adminOrders.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  접수된 상품 교환 주문이 없습니다.
-                </div>
-              ) : (
-                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
-                      <tr>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">요청 시간</th>
-                        <th className="px-4 py-3 font-medium whitespace-nowrap">사용자</th>
-                        <th className="px-4 py-3 font-medium">상품명</th>
-                        <th className="px-4 py-3 font-medium text-right whitespace-nowrap">포인트</th>
-                        <th className="px-4 py-3 font-medium text-center whitespace-nowrap">상태</th>
-                        <th className="px-4 py-3 font-medium text-center whitespace-nowrap">액션</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {adminOrders.slice(0, 100).map((order) => (
-                        <tr key={order.id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{order.requestedAt}</td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap">{order.username}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{order.itemName}</td>
-                          <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-primary">
-                            {order.cost}P
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              order.status === 'fulfilled' ? 'bg-green-500/10 text-green-500' :
-                              order.status === 'cancelled' ? 'bg-red-500/10 text-red-500' :
-                              'bg-yellow-500/10 text-yellow-500'
-                            }`}>
-                              {order.status === 'fulfilled' ? '완료' :
-                               order.status === 'cancelled' ? '취소' : '요청'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            {order.status === 'requested' && (
-                              <div className="flex gap-1 justify-center">
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await updateOrderStatus(order.id, 'fulfilled');
-                                      setAdminOrders(prev => prev.map(o => 
-                                        o.id === order.id ? { ...o, status: 'fulfilled' } : o
-                                      ));
-                                      toast.success("주문이 완료 처리되었습니다.");
-                                    } catch (e) {
-                                      toast.error("상태 업데이트 실패");
-                                    }
-                                  }}
-                                  className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
-                                >
-                                  완료
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await updateOrderStatus(order.id, 'cancelled');
-                                      setAdminOrders(prev => prev.map(o => 
-                                        o.id === order.id ? { ...o, status: 'cancelled' } : o
-                                      ));
-                                      toast.success("주문이 취소 처리되었습니다.");
-                                    } catch (e) {
-                                      toast.error("상태 업데이트 실패");
-                                    }
-                                  }}
-                                  className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
-                                >
-                                  취소
-                                </button>
-                              </div>
-                            )}
-                          </td>
+            <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground">🌐 시스템 접근 및 보안 로그</h2>
+                <span className="text-xs font-medium bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md">Cloudflare Edge Logs</span>
+              </div>
+              
+              <div className="bg-background rounded-xl border border-border overflow-hidden">
+                {isAdminLogsLoading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                    네트워크 로그를 분석 중입니다...
+                  </div>
+                ) : sysLogs.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    수집된 시스템 로그가 없습니다.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap">시간</th>
+                          <th className="px-4 py-3 font-medium">활동</th>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap">접속 IP</th>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap">국가</th>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap text-right">디바이스</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody className="divide-y divide-border font-mono">
+                        {sysLogs.slice(0, 50).map((log) => (
+                          <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs font-sans">{log.date}</td>
+                            <td className="px-4 py-3 font-medium text-xs whitespace-nowrap">
+                              <span className="bg-secondary px-2 py-1 rounded text-foreground">{log.action}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs tracking-wider">{log.ip}</td>
+                            <td className="px-4 py-3 text-xs">
+                              {log.country === "KR" ? "🇰🇷 KR" : `🌍 ${log.country}`}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-right whitespace-nowrap text-muted-foreground font-sans">
+                              {log.device}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+
+            <div className="bg-card p-6 rounded-2xl border border-border flex flex-col gap-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground">📦 상품 교환 주문 관리</h2>
+                <span className="text-xs text-muted-foreground">최근 100건</span>
+              </div>
+              
+              <div className="bg-background rounded-xl border border-border overflow-hidden">
+                {isAdminLogsLoading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+                    주문 데이터를 불러오는 중입니다...
+                  </div>
+                ) : adminOrders.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    접수된 상품 교환 주문이 없습니다.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap">요청 시간</th>
+                          <th className="px-4 py-3 font-medium whitespace-nowrap">사용자</th>
+                          <th className="px-4 py-3">상품명</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">포인트</th>
+                          <th className="px-4 py-3 text-center whitespace-nowrap">상태</th>
+                          <th className="px-4 py-3 text-center whitespace-nowrap">액션</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {adminOrders.slice(0, 100).map((order) => (
+                          <tr key={order.id} className="hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">{order.requestedAt}</td>
+                            <td className="px-4 py-3 font-medium whitespace-nowrap">{order.username}</td>
+                            <td className="px-4 py-3 text-muted-foreground">{order.itemName}</td>
+                            <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-primary">
+                              {order.cost}P
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                order.status === "fulfilled" ? "bg-green-500/10 text-green-500" :
+                                order.status === "cancelled" ? "bg-red-500/10 text-red-500" :
+                                "bg-yellow-500/10 text-yellow-500"
+                              }`}>
+                                {order.status === "fulfilled" ? "완료" :
+                                 order.status === "cancelled" ? "취소" : "요청"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              {order.status === "requested" && (
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await updateOrderStatus(order.id, "fulfilled");
+                                        setAdminOrders(prev => prev.map(o => 
+                                          o.id === order.id ? { ...o, status: "fulfilled" } : o
+                                        ));
+                                        toast.success("주문이 완료 처리되었습니다.");
+                                      } catch (e) {
+                                        toast.error("상태 업데이트 실패");
+                                      }
+                                    }}
+                                    className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+                                  >
+                                    완료
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await updateOrderStatus(order.id, "cancelled");
+                                        setAdminOrders(prev => prev.map(o => 
+                                          o.id === order.id ? { ...o, status: "cancelled" } : o
+                                        ));
+                                        toast.success("주문이 취소 처리되었습니다.");
+                                      } catch (e) {
+                                        toast.error("상태 업데이트 실패");
+                                      }
+                                    }}
+                                    className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </AppContainer>
       </AppShell>
@@ -716,7 +760,7 @@ function MainContent() {
   }
 
   const todayYmd = new Date().toISOString().slice(0, 10)
-  const hasUsageToday = usageHistory.some((u) => u.date === todayYmd)
+  // const hasUsageToday = usageHistory.some((u) => u.date === todayYmd)
 
   return (
     <AppShell>
@@ -804,7 +848,6 @@ function MainContent() {
   )
 }
 
-// 2. Next.js App Router에서 useSearchParams를 사용하기 위해 Suspense로 감싸줍니다.
 export default function Home() {
   return (
     <Suspense fallback={
