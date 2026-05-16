@@ -267,7 +267,7 @@ function MainContent() {
       } else {
         setPoints(100);
         recordPoint(name, "신규 가입 보너스", 100);
-        toast.success("가입을 축하합니다! 시작 포인트 100P 가 지급되었습니다.");
+        toast.success("가입을 축하합니다! .");
       }
       
       await loginUser(name);

@@ -99,7 +99,7 @@ export function CoachingTab({
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">팁</p>
               <p className="text-lg font-black text-foreground truncate">
-                “구체적일수록 좋아요”
+                “구체적”
               </p>
             </div>
           </div>

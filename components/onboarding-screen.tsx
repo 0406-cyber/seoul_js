@@ -1,4 +1,5 @@
 "use client"
+import Image from "next/image"
 
 import { useState } from "react"
 import { ArrowRight, Sparkles, Loader2 } from "lucide-react"
@@ -66,22 +67,17 @@ export function OnboardingScreen({ onComplete, checkIsExistingUser }: Onboarding
         {step === 1 ? (
           <>
             <div className="text-center mb-12">
-              <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mx-auto mb-6">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="40"
-                  height="40"
-                  viewBox="0 0 48 48"
-                  fill="none"
-                  className="text-primary"
-                >
-                  <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="1.8" fill="none" opacity="0.3" />
-                  <path d="M6 32 C10 26 14 22 18 28 C20 24 24 18 28 24 C30 20 34 16 38 22 L42 32" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                  <path d="M28 14 L20 24 L26 24 L22 36 L32 24 L26 24 Z" fill="currentColor" opacity="0.9" />
-                  <path d="M16 16 C18 12 22 10 24 14 C22 16 18 18 16 16Z" fill="currentColor" opacity="0.7" />
-                </svg>
+              <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mx-auto mb-6 overflow-hidden">
+                <Image
+                  src="/seoul_logo.png"
+                  alt="Enerview Logo"
+                  width={56}
+                  height={56}
+                  className="object-contain"
+                  priority
+                />
               </div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">서울청년기획봉사단</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-2">에너뷰 Enerview</h1>
               <p className="text-muted-foreground">탄소 절약 & AI 에너지 코칭</p>
             </div>
 
@@ -124,8 +120,9 @@ export function OnboardingScreen({ onComplete, checkIsExistingUser }: Onboarding
 
             <div className="mt-12 space-y-3">
               <FeatureItem icon="chart" text="전기/가스 사용량 분석" />
-              <FeatureItem icon="ai" text="AI 맞춤 에너지 코칭" />
+              <FeatureItem icon="ai" text="AI 에너지 코칭" />
               <FeatureItem icon="camera" text="친환경 활동 인증" />
+              <FeatureItem icon="trophy" text="탄소맵" />
             </div>
           </>
         ) : (

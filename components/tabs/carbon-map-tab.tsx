@@ -197,7 +197,7 @@ export function CarbonMapTab() {
             <div className="flex-1">
               <p className="text-[11px] font-black opacity-70 uppercase tracking-wider">Analysis Insight</p>
               <p className="text-sm font-bold mt-1 leading-tight">
-                **강남구** 가 서울에서 전력을 가장 많이 소비합니다.
+                2024년 통계청 데이터 기준으로 일단 넣어놨고, 지도 부분이랑 데이터는 수정해야합니다
               </p>
             </div>
             <ChevronRight className="w-5 h-5 opacity-40 group-hover:translate-x-1 transition-transform" />

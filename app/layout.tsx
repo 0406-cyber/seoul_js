@@ -13,7 +13,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Enerview',
-  description: '에너지 사용량을 분석하고 AI 쳇봇을 통해 탄소 배출을 줄여보세요',
+  description: '에너지 사용량을 분석, AI 쳇봇',
   generator: 'v0.app',
   icons: {
     icon: [
