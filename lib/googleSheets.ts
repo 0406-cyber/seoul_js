@@ -646,3 +646,45 @@ export async function getCertifications(username: string): Promise<any[]> {
     return [];
   }
 }
+
+// 💬 새롭게 추가된 AI 코칭 대화 내역 저장 함수 (coaching_chats 탭)
+export async function saveChatMessage(username: string, role: string, content: string, id: string): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("coaching_chats!A:E");
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
+
+  const dateStr = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+  const values = [[id, username, role, content, dateStr]];
+
+  await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+}
+
+// 💬 새롭게 추가된 AI 코칭 대화 내역 불러오기 함수 (coaching_chats 탭)
+export async function getChatMessages(username: string): Promise<any[]> {
+  try {
+    const { token, spreadsheetId } = await getAccessToken();
+    const range = encodeURIComponent("coaching_chats!A:E");
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+    const data = await res.json();
+    const rows = data.values || [];
+    if (rows.length <= 1) return [];
+
+    return rows.slice(1)
+      .filter((row: any) => row[1] === username)
+      .map((row: any) => ({
+        id: row[0],
+        role: row[2] as "user" | "assistant",
+        content: row[3] || "",
+        // 생성 시간 순으로 보여주기 위해 별도로 reverse()를 하지 않습니다 (오래된 대화가 위로).
+      }));
+  } catch (e) {
+    console.error("대화 내역 불러오기 에러:", e);
+    return [];
+  }
+}

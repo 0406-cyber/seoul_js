@@ -23,8 +23,10 @@ import {
   getAllOrders,
   updateOrderStatus,
   getUsageHistory,
-  saveCertification, // 👈 새로 추가된 인증 기록 저장 함수
-  getCertifications  // 👈 새로 추가된 인증 기록 불러오기 함수
+  saveCertification,
+  getCertifications,
+  saveChatMessage, // 👈 추가됨
+  getChatMessages  // 👈 추가됨
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -145,13 +147,11 @@ function MainContent() {
     }
   }, []);
 
-  // ✅ 닉네임 인식 시 구글 시트 데이터와 동기화
   useEffect(() => {
     if (!nickname || !mounted) return;
 
     const syncWithServer = async () => {
       try {
-        // 1. 구글 시트에서 에너지 사용 기록 가져오기
         const serverHistory = await getUsageHistory(nickname);
         if (serverHistory && serverHistory.length > 0) {
           setUsageHistory(serverHistory);
@@ -163,7 +163,6 @@ function MainContent() {
           setUsageHistory(loadUsageHistory(nickname));
         }
 
-        // 2. 리더보드 및 포인트 동기화
         const remoteData = await getLeaderboardViaApi();
         setRemoteUsers(remoteData);
         
@@ -173,13 +172,11 @@ function MainContent() {
           savePoints(nickname, myData.points); 
         }
 
-        // 3. 포인트 로그 동기화
         const serverLogs = await getPointLogs(nickname);
         if (serverLogs && serverLogs.length > 0) {
           setPointHistory(serverLogs);
         }
 
-        // 4. ♻️ 구글 시트에서 친환경 활동 인증 내역 복원!
         try {
           const serverCerts = await getCertifications(nickname);
           if (serverCerts && serverCerts.length > 0) {
@@ -187,6 +184,16 @@ function MainContent() {
           }
         } catch (certError) {
           console.error("인증 내역을 불러오는 데 실패했습니다:", certError);
+        }
+
+        // 💬 과거 코칭 대화 내역 불러오기 로직 추가
+        try {
+          const chatHistory = await getChatMessages(nickname);
+          if (chatHistory && chatHistory.length > 0) {
+            setMessages(chatHistory);
+          }
+        } catch (chatError) {
+          console.error("대화 내역을 불러오는 데 실패했습니다:", chatError);
         }
 
       } catch (e: any) {
@@ -299,7 +306,6 @@ function MainContent() {
       try {
         await updateUserPoints(nickname, delta)
       } catch {
-        // best effort
       }
     },
     [nickname, recordPoint]
@@ -316,7 +322,6 @@ function MainContent() {
       try {
         await updateUserPoints(nickname, -cost)
       } catch {
-        // best effort
       }
     },
     [nickname, recordPoint]
@@ -386,8 +391,9 @@ function MainContent() {
   }, [nickname, electricityUsage, gasUsage])
 
   const handleSendMessage = useCallback(async (content: string) => {
+    const userMessageId = Date.now().toString();
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId,
       role: "user",
       content,
     };
@@ -406,6 +412,11 @@ function MainContent() {
     ]);
     setIsCoachingLoading(true);
 
+    // 💬 사용자가 보낸 메시지를 서버에 저장합니다.
+    if (nickname) {
+      saveChatMessage(nickname, "user", content, userMessageId).catch(console.error);
+    }
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -421,6 +432,7 @@ function MainContent() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let done = false;
+      let fullAssistantMessage = ""; // 👈 스트리밍 완성본을 담을 변수
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
@@ -428,6 +440,7 @@ function MainContent() {
 
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
+          fullAssistantMessage += chunk;
           
           setMessages((prev) => 
             prev.map((msg) => 
@@ -438,6 +451,12 @@ function MainContent() {
           );
         }
       }
+
+      // 💬 스트리밍이 끝나면 완성된 어시스턴트 메시지를 서버에 저장합니다.
+      if (nickname) {
+        saveChatMessage(nickname, "assistant", fullAssistantMessage, assistantMessageId).catch(console.error);
+      }
+
     } catch (e: any) {
       toast.error("AI 응답 실패: " + e.message);
       setMessages((prev) => 
@@ -450,7 +469,7 @@ function MainContent() {
     } finally {
       setIsCoachingLoading(false);
     }
-  }, [messages]);
+  }, [messages, nickname]);
 
   const handleRequestAdvice = useCallback(async () => {
       setIsCoachingLoading(true);
@@ -471,7 +490,14 @@ function MainContent() {
         const latest = usageHistory[usageHistory.length - 1];
         const prompt = `사용자가 이번 달에 전기 ${latest.elec_kwh}kWh, 가스 ${latest.gas_m3}m3를 사용하여 총 ${latest.co2_kg.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
 
-        const assistantMessageId = Date.now().toString();
+        const userMessageId = Date.now().toString();
+        // 실제 화면에는 프롬프트 전문이 보이지 않고 AI 응답만 추가되도록 구성된 기존 로직 유지
+        // 내부적으로는 질문을 저장해두는 것이 맥락 유지에 좋습니다.
+        if (nickname) {
+           saveChatMessage(nickname, "user", "[시스템: 사용량 기반 조언 요청]", userMessageId).catch(console.error);
+        }
+
+        const assistantMessageId = (Date.now() + 1).toString();
         
         setMessages((prev) => [
           ...prev,
@@ -492,6 +518,7 @@ function MainContent() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let done = false;
+        let fullAssistantMessage = "";
 
         while (!done) {
           const { value, done: readerDone } = await reader.read();
@@ -499,6 +526,7 @@ function MainContent() {
 
           if (value) {
             const chunk = decoder.decode(value, { stream: true });
+            fullAssistantMessage += chunk;
             
             setMessages((prev) => 
               prev.map((msg) => 
@@ -509,12 +537,18 @@ function MainContent() {
             );
           }
         }
+
+        // 💬 스트리밍 완료 후 조언 내역 서버에 저장
+        if (nickname) {
+          saveChatMessage(nickname, "assistant", fullAssistantMessage, assistantMessageId).catch(console.error);
+        }
+
       } catch (e: any) {
         toast.error("조언 요청 실패: " + e.message);
       } finally {
         setIsCoachingLoading(false);
       }
-    }, [usageHistory]);
+    }, [usageHistory, nickname]);
 
   const handleCertify = useCallback(async (): Promise<{
     ok: boolean
@@ -564,15 +598,12 @@ function MainContent() {
           points: gainedPoints,
         }
 
-        // 로컬 상태 업데이트
         setCertificationHistory((prev) => [newCert, ...prev])
 
-        // ♻️ 구글 시트에 인증 내역 데이터 업로드 시도
         try {
           await saveCertification(nickname, newDate, description, gainedPoints, newId);
         } catch (saveError) {
           console.error("인증 내역 구글 시트 저장 실패:", saveError);
-          // 실패하더라도 포인트 지급은 완료되었으므로 흐름을 멈추지는 않습니다.
         }
 
         return { ok: true, earnedPoints: gainedPoints }
