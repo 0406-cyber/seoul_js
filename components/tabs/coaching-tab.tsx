@@ -83,7 +83,7 @@ export function CoachingTab({
               <Bot className="w-4 h-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">코치 준비</p>
+              <p className="text-xs text-muted-foreground">서버 테스트</p>
               <p className="text-lg font-black text-foreground truncate">
                 {stats.hasAssistant ? "ON" : "READY"}
               </p>
@@ -97,9 +97,9 @@ export function CoachingTab({
               <Shield className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">팁</p>
+              <p className="text-xs text-muted-foreground">???</p>
               <p className="text-lg font-black text-foreground truncate">
-                “구체적”
+                “Undefined”
               </p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export function CoachingTab({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                Smart Coaching
+                AI Coaching
               </p>
               <h3 className="text-xl font-bold text-foreground">AI 에너지 코치</h3>
             </div>
