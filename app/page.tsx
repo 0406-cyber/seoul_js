@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import dynamic from "next/dynamic" // ✨ 지도 SSR 오류 방지를 위해 추가
+import dynamic from "next/dynamic"
 import { Moon, Sun } from "lucide-react"
 import { toast } from "sonner"
 import { useTheme } from "next-themes"
@@ -11,13 +11,6 @@ import { AnalysisTab } from "@/components/tabs/analysis-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
 import { CertificationTab } from "@/components/tabs/certification-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
-// import { DailyMissionsCard } from "@/components/daily-missions-card"
-// import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
-// import { CertificationTab } from "@/components/tabs/certification-tab"
-// import { CampaignTab } from "@/components/tabs/campaign-tab"
-// import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
-// import { EcoCityTab } from "@/components/tabs/eco-city-tab"
-// import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
 import {
   computeCo2Kg,
   saveUsage,
@@ -29,7 +22,9 @@ import {
   getSystemLogs,
   getAllOrders,
   updateOrderStatus,
-  getUsageHistory // 👈 새로 추가된 함수 임포트
+  getUsageHistory,
+  saveCertification, // 👈 새로 추가된 인증 기록 저장 함수
+  getCertifications  // 👈 새로 추가된 인증 기록 불러오기 함수
 } from "@/lib/googleSheets"
 import {
   getGemmaAdvice,
@@ -46,7 +41,6 @@ import {
 } from "@/components/app/point-history-modal"
 import { getTabMeta } from "@/lib/tab-meta"
 
-// 🌍 CarbonMapTab을 다이나믹 임포트로 설정 (지도 라이브러리의 window 객체 참조 오류 방지)
 const CarbonMapTab = dynamic(
   () => import("@/components/tabs/carbon-map-tab").then((mod) => mod.CarbonMapTab),
   { 
@@ -157,7 +151,7 @@ function MainContent() {
 
     const syncWithServer = async () => {
       try {
-        // 1. 구글 시트에서 에너지 사용 기록 가져오기 (가장 최근 데이터 반영)
+        // 1. 구글 시트에서 에너지 사용 기록 가져오기
         const serverHistory = await getUsageHistory(nickname);
         if (serverHistory && serverHistory.length > 0) {
           setUsageHistory(serverHistory);
@@ -184,6 +178,17 @@ function MainContent() {
         if (serverLogs && serverLogs.length > 0) {
           setPointHistory(serverLogs);
         }
+
+        // 4. ♻️ 구글 시트에서 친환경 활동 인증 내역 복원!
+        try {
+          const serverCerts = await getCertifications(nickname);
+          if (serverCerts && serverCerts.length > 0) {
+            setCertificationHistory(serverCerts);
+          }
+        } catch (certError) {
+          console.error("인증 내역을 불러오는 데 실패했습니다:", certError);
+        }
+
       } catch (e: any) {
         console.error("서버 데이터 동기화 에러:", e.message);
       }
@@ -549,15 +554,26 @@ function MainContent() {
         const description = result.description || "에너지 절약 행동"
         recordPoint(nickname, description, gainedPoints);
 
-        setCertificationHistory((prev) => [
-          {
-            id: Date.now().toString(),
-            date: new Date().toLocaleDateString("ko-KR").replace(/\. /g, ".").slice(0, -1),
-            type: description,
-            points: gainedPoints,
-          },
-          ...prev,
-        ])
+        const newId = Date.now().toString()
+        const newDate = new Date().toLocaleDateString("ko-KR").replace(/\. /g, ".").slice(0, -1)
+
+        const newCert = {
+          id: newId,
+          date: newDate,
+          type: description,
+          points: gainedPoints,
+        }
+
+        // 로컬 상태 업데이트
+        setCertificationHistory((prev) => [newCert, ...prev])
+
+        // ♻️ 구글 시트에 인증 내역 데이터 업로드 시도
+        try {
+          await saveCertification(nickname, newDate, description, gainedPoints, newId);
+        } catch (saveError) {
+          console.error("인증 내역 구글 시트 저장 실패:", saveError);
+          // 실패하더라도 포인트 지급은 완료되었으므로 흐름을 멈추지는 않습니다.
+        }
 
         return { ok: true, earnedPoints: gainedPoints }
       } catch (e: any) {
@@ -821,8 +837,6 @@ function MainContent() {
           />
         )}
 
-        {/* {activeTab === "water" && <WaterFootprintTab />} */}
-
         {activeTab === "coaching" && (
           <CoachingTab
             messages={messages}
@@ -846,24 +860,6 @@ function MainContent() {
           <CarbonMapTab />
         )}
 
-        {/* {activeTab === "campaign" && (
-          <CampaignTab nickname={nickname ?? "user"} points={points} onGrantPoints={grantPoints} />
-        )} */}
-
-        {/* {activeTab === "ecoCity" && nickname && (
-          <EcoCityTab nickname={nickname} points={points} onSpendPoints={spendPoints} />
-        )} */}
-
-        {/* {activeTab === "feed" && nickname && (
-          <CitizenFeedTab
-            nickname={nickname}
-            onAwardPoints={(delta, reason) => awardPoints(delta, reason)}
-          />
-        )} */}
-
-        {/* {activeTab === "leaderboard" && (
-          <LeaderboardTab entries={leaderboard} currentUserId="current" />
-        )} */}
       </AppContainer>
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />

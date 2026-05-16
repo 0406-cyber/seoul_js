@@ -163,12 +163,9 @@ export async function saveUsage(username: string, elec: number, gas: number, co2
   }
 }
 
-// lib/googleSheets.ts 내부의 해당 함수들을 찾아 아래 내용으로 변경하세요.
-
 /** 로그인 및 횟수 업데이트 */
 export async function loginUser(username: string): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
-  // 캐시 방지를 위해 끝에 타임스탬프 추가
   const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C?t=${Date.now()}`;
   
   const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` }});
@@ -198,17 +195,15 @@ export async function loginUser(username: string): Promise<void> {
     await fetch(appendUrl, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      // 🚨 신규 가입자 초기 포인트 100 적용! (기존 0 -> 100)
       body: JSON.stringify({ values: [[username, 1, 100]] }) 
     });
   }
 }
-/** 포인트 업데이트 */
-/** 포인트 업데이트 로직 보강 */
+
 /** 포인트 업데이트 */
 export async function updateUserPoints(username: string, points: number): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
-  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C?t=${Date.now()}`; // 캐시 방지
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/users!A:C?t=${Date.now()}`; 
   
   const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` }});
   const data = await getRes.json();
@@ -240,7 +235,6 @@ export async function getLeaderboardViaApi(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
     const range = encodeURIComponent("users!A:C");
-    // 캐시를 완벽하게 무효화하는 타임스탬프 쿼리
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
 
     const response = await fetch(url, {
@@ -308,14 +302,13 @@ export async function getPointLogs(username: string): Promise<any[]> {
         date: row[1] || "",
         description: row[2] || "",
         amount: parseInt(row[3], 10) || 0
-      })).reverse(); // 최신순 정렬
+      })).reverse(); 
   } catch (e) {
     return [];
   }
 }
 
-/** 피드(시민기자단) 전체 불러오기 (feed 탭) */
-/** 피드(시민기자단) 전체 불러오기 (feed 탭) */
+/** 피드 관련 코드 (생략 안함) */
 export async function getFeedPostsViaApi(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -328,7 +321,7 @@ export async function getFeedPostsViaApi(): Promise<any[]> {
     if (rows.length <= 1) return [];
 
     return rows.slice(1)
-      .filter((row: any) => row[0] && String(row[0]).trim() !== "") // ⭐️ 삭제되어 빈칸이 된 행 필터링
+      .filter((row: any) => row[0] && String(row[0]).trim() !== "") 
       .map((row: any) => ({
         id: row[0],
         author: row[1],
@@ -343,7 +336,6 @@ export async function getFeedPostsViaApi(): Promise<any[]> {
   }
 }
 
-/** 피드 수정하기 (feed 탭) */
 export async function editFeedPostViaApi(postId: string, title: string, body: string): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("feed!A:G");
@@ -361,7 +353,6 @@ export async function editFeedPostViaApi(postId: string, title: string, body: st
   }
 
   if (rowIndex !== -1) {
-    // C열(제목)과 D열(내용)만 덮어쓰기
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/feed!C${rowIndex}:D${rowIndex}?valueInputOption=USER_ENTERED`;
     await fetch(updateUrl, {
       method: "PUT",
@@ -371,7 +362,6 @@ export async function editFeedPostViaApi(postId: string, title: string, body: st
   }
 }
 
-/** 피드 삭제하기 (feed 탭) */
 export async function deleteFeedPostViaApi(postId: string): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("feed!A:G");
@@ -389,7 +379,6 @@ export async function deleteFeedPostViaApi(postId: string): Promise<void> {
   }
 
   if (rowIndex !== -1) {
-    // 해당 행을 모두 빈칸으로 덮어써서 삭제 처리
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/feed!A${rowIndex}:G${rowIndex}?valueInputOption=USER_ENTERED`;
     await fetch(updateUrl, {
       method: "PUT",
@@ -399,7 +388,6 @@ export async function deleteFeedPostViaApi(postId: string): Promise<void> {
   }
 }
 
-/** 피드 작성하기 (feed 탭) */
 export async function saveFeedPostViaApi(post: any): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("feed!A:G");
@@ -422,7 +410,6 @@ export async function saveFeedPostViaApi(post: any): Promise<void> {
   });
 }
 
-/** 피드 좋아요 업데이트 (feed 탭) */
 export async function updateFeedPostLikesViaApi(postId: string, likedBy: string[]): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("feed!A:G");
@@ -448,7 +435,7 @@ export async function updateFeedPostLikesViaApi(postId: string, likedBy: string[
     });
   }
 }
-/** 전체 포인트 내역 불러오기 (Admin 용) */
+
 export async function getAllPointLogs(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -463,17 +450,16 @@ export async function getAllPointLogs(): Promise<any[]> {
     return rows.slice(1)
       .map((row: any, index: number) => ({
         id: `log-${index}`,
-        username: row[0] || "알 수 없음", // 첫 번째 열인 사용자 이름을 포함
+        username: row[0] || "알 수 없음",
         date: row[1] || "",
         description: row[2] || "",
         amount: parseInt(row[3], 10) || 0
-      })).reverse(); // 최신순 정렬
+      })).reverse(); 
   } catch (e) {
     return [];
   }
 }
 
-/** 상품 교환 주문 저장 (orders 탭) */
 export async function saveOrder(username: string, order: any): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("orders!A:G");
@@ -496,7 +482,6 @@ export async function saveOrder(username: string, order: any): Promise<void> {
   });
 }
 
-/** 전체 상품 교환 주문 불러오기 (Admin 용) */
 export async function getAllOrders(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -517,13 +502,12 @@ export async function getAllOrders(): Promise<any[]> {
         cost: parseInt(row[4], 10) || 0,
         requestedAt: row[5] || "",
         status: row[6] || "requested"
-      })).reverse(); // 최신순 정렬
+      })).reverse();
   } catch (e) {
     return [];
   }
 }
 
-/** 상품 교환 주문 상태 업데이트 (orders 탭) */
 export async function updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
   const { token, spreadsheetId } = await getAccessToken();
   const range = encodeURIComponent("orders!A:G");
@@ -549,7 +533,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string): Pro
     });
   }
 }
-/** 시스템 로그 기록 (server_logs 탭) */
+
 export async function saveSystemLog(action: string, ip: string, country: string, userAgent: string): Promise<void> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -557,8 +541,6 @@ export async function saveSystemLog(action: string, ip: string, country: string,
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
 
     const dateStr = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-    
-    // 모바일/PC 대략적 구분
     const isMobile = /Mobile|Android|iP(hone|od|ad)/i.test(userAgent) ? "Mobile" : "Desktop";
 
     const values = [[dateStr, action, ip, country, isMobile]];
@@ -573,7 +555,6 @@ export async function saveSystemLog(action: string, ip: string, country: string,
   }
 }
 
-/** 시스템 로그 불러오기 (Admin 용) */
 export async function getSystemLogs(): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -592,12 +573,12 @@ export async function getSystemLogs(): Promise<any[]> {
       ip: row[2] || "Unknown IP",
       country: row[3] || "-",
       device: row[4] || "-"
-    })).reverse(); // 최신순 정렬
+    })).reverse(); 
   } catch (e) {
     return [];
   }
 }
-/** 사용자의 에너지 사용 기록 불러오기 (usage 탭) */
+
 export async function getUsageHistory(username: string): Promise<any[]> {
   try {
     const { token, spreadsheetId } = await getAccessToken();
@@ -610,7 +591,6 @@ export async function getUsageHistory(username: string): Promise<any[]> {
     
     if (rows.length <= 1) return [];
 
-    // 사용자의 이름과 일치하는 행만 필터링하여 반환
     return rows.slice(1)
       .filter((row: any) => row[0] === username)
       .map((row: any) => ({
@@ -621,6 +601,48 @@ export async function getUsageHistory(username: string): Promise<any[]> {
       }));
   } catch (e) {
     console.error("기록 불러오기 실패:", e);
+    return [];
+  }
+}
+
+// ♻️ 새롭게 추가된 친환경 인증 내역 저장 함수 (certifications 탭)
+export async function saveCertification(username: string, date: string, type: string, points: number, id: string): Promise<void> {
+  const { token, spreadsheetId } = await getAccessToken();
+  const range = encodeURIComponent("certifications!A:E");
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
+
+  const values = [[id, username, date, type, String(points)]];
+
+  await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+}
+
+// ♻️ 새롭게 추가된 친환경 인증 내역 불러오기 함수 (certifications 탭)
+export async function getCertifications(username: string): Promise<any[]> {
+  try {
+    const { token, spreadsheetId } = await getAccessToken();
+    const range = encodeURIComponent("certifications!A:E");
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?t=${Date.now()}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, "cache": "no-store" } });
+    const data = await res.json();
+    const rows = data.values || [];
+    if (rows.length <= 1) return []; // 데이터가 없거나 헤더만 있는 경우
+
+    // B열(인덱스 1)이 username인 데이터만 필터링하여 반환
+    return rows.slice(1)
+      .filter((row: any) => row[1] === username)
+      .map((row: any) => ({
+        id: row[0] || Date.now().toString(),
+        date: row[2] || "",
+        type: row[3] || "",
+        points: parseInt(row[4], 10) || 0
+      })).reverse(); // 최신순 정렬
+  } catch (e) {
+    console.error("인증 내역 불러오기 에러:", e);
     return [];
   }
 }
