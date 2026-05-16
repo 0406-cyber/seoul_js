@@ -130,19 +130,20 @@ export async function getFeedPostsViaApi(): Promise<any[]> {
   if (!db) return [];
 
   try {
-    const { results } = await db.prepare("SELECT id, author, title, body, imageDataUrl, createdAt, likedBy FROM feed ORDER BY createdAt ASC").all();
+    // 디비 레벨에서 최신순으로 딱 50개만 잘라서 읽어옴 (한도 극적으로 절약)
+    const { results } = await db.prepare(
+      "SELECT id, author, title, body, imageDataUrl, createdAt, likedBy FROM feed WHERE id IS NOT NULL AND id != '' ORDER BY createdAt DESC LIMIT 50"
+    ).all();
     
-    return results
-      .filter((row: any) => row.id && String(row.id).trim() !== "")
-      .map((row: any) => ({
-        id: row.id,
-        author: row.author,
-        title: row.title,
-        body: row.body,
-        imageDataUrl: row.imageDataUrl || undefined,
-        createdAt: Number(row.createdAt) || Date.now(),
-        likedBy: row.likedBy ? JSON.parse(row.likedBy) : []
-      })).reverse();
+    return results.map((row: any) => ({
+      id: row.id,
+      author: row.author,
+      title: row.title,
+      body: row.body,
+      imageDataUrl: row.imageDataUrl || undefined,
+      createdAt: Number(row.createdAt) || Date.now(),
+      likedBy: row.likedBy ? JSON.parse(row.likedBy) : []
+    }));
   } catch (e) {
     console.error("피드 데이터 조회 실패:", e);
     return [];
@@ -249,16 +250,19 @@ export async function getSystemLogs(): Promise<any[]> {
   const db = process.env.DB;
   if (!db) return [];
 
-  const { results } = await db.prepare("SELECT date, action, ip, country, device FROM server_logs ORDER BY id ASC").all();
+  // 디비 자체에서 최신순 정렬 후 100개만 컷
+  const { results } = await db.prepare(
+    "SELECT id, date, action, ip, country, device FROM server_logs ORDER BY id DESC LIMIT 100"
+  ).all();
   
-  return results.map((row: any, index: number) => ({
-    id: `syslog-${index}`,
+  return results.map((row: any) => ({
+    id: `syslog-${row.id}`,
     date: row.date,
     action: row.action,
     ip: row.ip,
     country: row.country,
     device: row.device
-  })).reverse();
+  }));
 }
 
 /** 18. 사용자의 가스/전기 이력 조회 (usage 테이블) */
