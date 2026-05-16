@@ -1,0 +1,11 @@
+{
+  "name": "seoul-enerview",
+  "compatibility_date": "2024-04-03",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "seoul-enerview-db",
+      "database_id": "87f416f0-19e8-436a-b702-05ffc620455a"
+    }
+  ]
+}

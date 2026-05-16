@@ -1,6 +1,6 @@
 // app/api/syslog/route.ts
 import { NextResponse } from 'next/server';
-import { saveSystemLog } from '@/lib/googleSheets';
+import { saveSystemLog } from '@/lib/db';
 
 export const runtime = 'edge';
 

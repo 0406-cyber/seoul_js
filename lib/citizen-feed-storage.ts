@@ -4,7 +4,7 @@ import {
   updateFeedPostLikesViaApi,
   editFeedPostViaApi,    // ⭐️ 추가됨
   deleteFeedPostViaApi   // ⭐️ 추가됨
-} from "./googleSheets";
+} from "./db";
 
 export type CitizenPost = {
   id: string;

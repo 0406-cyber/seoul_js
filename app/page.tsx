@@ -27,7 +27,7 @@ import {
   getCertifications,
   saveChatMessage, // 👈 추가됨
   getChatMessages  // 👈 추가됨
-} from "@/lib/googleSheets"
+} from "@/lib/db"
 import {
   getGemmaAdvice,
   analyzeImageWithGemini,

@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner"
 import { SHOP_ITEMS } from "@/lib/shop"
 import { addOrder, loadOrders, type RedeemOrder } from "@/lib/shop-storage"
-import { saveOrder } from "@/lib/googleSheets"
+import { saveOrder } from "@/lib/db"
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
