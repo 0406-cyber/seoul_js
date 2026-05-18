@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useMemo } from "react"
 import {
   Building,
   Zap,
@@ -10,12 +10,7 @@ import {
   TrendingUp,
   Sparkles,
   ShieldCheck,
-  ShoppingBag,
 } from "lucide-react"
-import { toast } from "sonner"
-import { SHOP_ITEMS } from "@/lib/shop"
-import { addOrder, loadOrders, type RedeemOrder } from "@/lib/shop-storage"
-import { saveOrder } from "@/lib/db"
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n))
@@ -63,11 +58,9 @@ const STAGES: Stage[] = [
 export function EcoCityTab({
   nickname,
   points,
-  onSpendPoints,
 }: {
   nickname: string
   points: number
-  onSpendPoints: (cost: number, reason: string) => Promise<void> | void
 }) {
   const stage = useMemo(() => {
     const sorted = [...STAGES].sort((a, b) => a.minPoints - b.minPoints)
@@ -105,11 +98,6 @@ export function EcoCityTab({
     if (list.length === 0) list.push({ title: "진단 단계", desc: "현재 사용 패턴을 파악하고 목표를 세워요", Icon: Lightbulb })
     return list.slice(0, 3)
   }, [stage.cur.id])
-
-  const [orders, setOrders] = useState<RedeemOrder[]>([])
-  useEffect(() => {
-    setOrders(loadOrders(nickname))
-  }, [nickname])
 
   return (
     <div className="space-y-6 pb-28">
@@ -275,7 +263,7 @@ export function EcoCityTab({
               </p>
               <h4 className="text-xl font-black text-foreground mt-1">현재 적용되는 개선</h4>
               <p className="text-sm text-muted-foreground mt-2">
-                단계가 올라갈수록 “도시 운영 효율”이 높아지는 컨셉이에요. 과한 그림 대신 핵심만 보여줍니다.
+                단계가 올라갈수록 "도시 운영 효율"이 높아지는 컨셉이에요. 과한 그림 대신 핵심만 보여줍니다.
               </p>
             </div>
             <div className="w-12 h-12 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -322,125 +310,13 @@ export function EcoCityTab({
           <div className="mt-6 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-5 py-4">
             <p className="text-sm font-black text-foreground">추천 액션</p>
             <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-              <li>- “탄소 분석”에서 데이터를 꾸준히 기록하기</li>
-              <li>- “친환경 인증”으로 실천을 인증해 포인트 쌓기</li>
-              <li>- “시민 기자단”에서 꿀팁 공유로 주간 보상 노리기</li>
+              <li>- "탄소 분석"에서 데이터를 꾸준히 기록하기</li>
+              <li>- "친환경 인증"으로 실천을 인증해 포인트 쌓기</li>
+              <li>- "시민 기자단"에서 꿀팁 공유로 주간 보상 노리기</li>
             </ul>
           </div>
         </div>
       </div>
-
-      {/* Point shop (goods) */}
-      <div className="glass-card rounded-[2.5rem] p-8 border border-border">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Point shop
-            </p>
-            <h4 className="text-xl font-black text-foreground mt-1">굿즈/상품 교환</h4>
-            <p className="text-sm text-muted-foreground mt-2">
-              포인트로 교환 요청을 남기면 운영자가 확인 후 지급/발송합니다. (MVP)
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <ShoppingBag className="w-6 h-6 text-primary" />
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {SHOP_ITEMS.map((it) => (
-            <div
-              key={it.id}
-              className="rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-5 py-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-foreground">
-                    <span className="mr-2">{it.imageEmoji ?? "🎁"}</span>
-                    {it.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{it.description}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-black text-foreground">{it.cost}P</p>
-                  <p className="text-[10px] text-muted-foreground">교환가</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  보유: <span className="font-black text-foreground">{points.toLocaleString()}P</span>
-                </p>
-                <button
-                  onClick={() => {
-                    if (points < it.cost) {
-                      toast.error("포인트가 부족합니다.")
-                      return
-                    }
-
-                    const order: RedeemOrder = {
-                      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-                      itemId: it.id,
-                      itemName: it.name,
-                      cost: it.cost,
-                      requestedAt: Date.now(),
-                      status: "requested",
-                    }
-
-                    Promise.resolve(
-                      onSpendPoints(it.cost, `굿즈 교환 요청: ${it.name}`)
-                    )
-                      .then(async () => {
-                        const next = addOrder(nickname, order)
-                        setOrders(next)
-                        try {
-                          await saveOrder(nickname, order)
-                        } catch (e) {
-                          console.error("주문 서버 저장 실패:", e)
-                        }
-                        toast.success("교환 요청이 접수되었습니다.")
-                      })
-                      .catch((e: any) => {
-                        toast.error(e?.message ?? "교환 요청 처리 중 오류가 발생했습니다.")
-                      })
-                  }}
-                  className="px-4 py-2 rounded-2xl bg-secondary text-secondary-foreground font-black hover:bg-secondary/80 transition"
-                >
-                  교환 요청
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <ShopHistory orders={orders} />
-      </div>
-    </div>
-  )
-}
-
-function ShopHistory({ orders }: { orders: RedeemOrder[] }) {
-  if (orders.length === 0) return null
-
-  return (
-    <div className="mt-6 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-5 py-4">
-      <p className="text-sm font-black text-foreground">교환 요청 내역</p>
-      <div className="mt-3 space-y-2">
-        {orders.slice(0, 5).map((o) => (
-          <div key={o.id} className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">{o.itemName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {new Date(o.requestedAt).toLocaleString("ko-KR")} · {o.status}
-              </p>
-            </div>
-            <span className="text-xs font-black text-muted-foreground">{o.cost}P</span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        * MVP에서는 로컬에만 저장됩니다. 운영 연동(구글시트/DB) 붙이면 실물 지급 프로세스로 확장 가능해요.
-      </p>
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { CertificationTab } from "@/components/tabs/certification-tab"
 import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
 import { CampaignTab } from "@/components/tabs/campaign-tab"
 import { EcoCityTab } from "@/components/tabs/eco-city-tab"
+import { ShopTab } from "@/components/tabs/shop-tab"
 import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
 import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
@@ -906,7 +907,6 @@ function MainContent() {
           <EcoCityTab
             nickname={nickname ?? ""}
             points={points}
-            onSpendPoints={spendPoints}
           />
         )}
 
@@ -921,6 +921,14 @@ function MainContent() {
           <LeaderboardTab
             entries={leaderboard}
             currentUserId="current"
+          />
+        )}
+
+        {activeTab === "shop" && (
+          <ShopTab
+            nickname={nickname ?? ""}
+            points={points}
+            onSpendPoints={spendPoints}
           />
         )}
 

@@ -8,6 +8,7 @@ import {
   Trees,
   Newspaper,
   Trophy,
+  ShoppingBag,
   LucideIcon,
 } from "lucide-react"
 
@@ -21,6 +22,7 @@ export type TabId =
   | "feed"
   | "leaderboard"
   | "carbonMap"
+  | "shop"
 
 export type TabMeta = {
   id: TabId
@@ -95,6 +97,13 @@ export const TAB_META: TabMeta[] = [
     title: "리더보드",
     subtitle: "친구들과 포인트·절약량을 비교해요",
     Icon: Trophy,
+  },
+  {
+    id: "shop",
+    navLabel: "상점",
+    title: "포인트 상점",
+    subtitle: "포인트로 굿즈/상품을 교환해요",
+    Icon: ShoppingBag,
   },
 ]
 
