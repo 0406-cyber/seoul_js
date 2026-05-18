@@ -10,6 +10,11 @@ import { BottomNav } from "@/components/bottom-nav"
 import { AnalysisTab } from "@/components/tabs/analysis-tab"
 import { CoachingTab } from "@/components/tabs/coaching-tab"
 import { CertificationTab } from "@/components/tabs/certification-tab"
+import { WaterFootprintTab } from "@/components/tabs/water-footprint-tab"
+import { CampaignTab } from "@/components/tabs/campaign-tab"
+import { EcoCityTab } from "@/components/tabs/eco-city-tab"
+import { CitizenFeedTab } from "@/components/tabs/citizen-feed-tab"
+import { LeaderboardTab } from "@/components/tabs/leaderboard-tab"
 import { OnboardingScreen } from "@/components/onboarding-screen"
 import {
   computeCo2Kg,
@@ -884,6 +889,38 @@ function MainContent() {
             onCertify={handleCertify}
             points={points}
             certificationHistory={certificationHistory}
+          />
+        )}
+
+        {activeTab === "water" && <WaterFootprintTab />}
+
+        {activeTab === "campaign" && (
+          <CampaignTab
+            nickname={nickname ?? ""}
+            points={points}
+            onGrantPoints={grantPoints}
+          />
+        )}
+
+        {activeTab === "ecoCity" && (
+          <EcoCityTab
+            nickname={nickname ?? ""}
+            points={points}
+            onSpendPoints={spendPoints}
+          />
+        )}
+
+        {activeTab === "feed" && (
+          <CitizenFeedTab
+            nickname={nickname ?? ""}
+            onAwardPoints={grantPoints}
+          />
+        )}
+
+        {activeTab === "leaderboard" && (
+          <LeaderboardTab
+            entries={leaderboard}
+            currentUserId="current"
           />
         )}
 

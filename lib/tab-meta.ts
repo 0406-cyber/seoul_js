@@ -3,7 +3,12 @@ import {
   MessageCircle,
   Globe2,
   Camera,
-  type LucideIcon,
+  Droplets,
+  QrCode,
+  Trees,
+  Newspaper,
+  Trophy,
+  LucideIcon,
 } from "lucide-react"
 
 export type TabId =
@@ -24,6 +29,8 @@ export type TabMeta = {
   subtitle: string
   Icon: LucideIcon
 }
+
+export const MAIN_TAB_IDS: TabId[] = ["analysis", "coaching", "certification", "carbonMap"]
 
 export const TAB_META: TabMeta[] = [
   {
@@ -54,8 +61,6 @@ export const TAB_META: TabMeta[] = [
     subtitle: "사진으로 실천을 인증하고 포인트를 모아요",
     Icon: Camera,
   },
-  // 비활성화된 탭: 나중에 다시 활성화하려면 아래 항목을 주석 해제하세요.
-  /*
   {
     id: "water",
     navLabel: "물",
@@ -91,10 +96,8 @@ export const TAB_META: TabMeta[] = [
     subtitle: "친구들과 포인트·절약량을 비교해요",
     Icon: Trophy,
   },
-  */
 ]
 
 export function getTabMeta(id: string | null | undefined) {
   return TAB_META.find((t) => t.id === id) ?? TAB_META[0]
 }
-

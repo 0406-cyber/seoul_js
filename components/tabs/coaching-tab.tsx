@@ -48,7 +48,7 @@ export function CoachingTab({
   return (
     <div className="space-y-6 pb-28">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className="bg-card rounded-3xl p-4 border border-border">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center">
@@ -104,7 +104,7 @@ export function CoachingTab({
             </div>
           </div>
         </div>
-      </div>
+      </div>*/}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* CTA / tips */}
