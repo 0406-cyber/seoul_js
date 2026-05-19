@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
-    apple: '/seoul_logo.png', // 👈 홈 화면 바로가기용 모바일 아이콘을 실제 로고 파일로 대체
+    apple: '/icon-512.png', // 👈 홈 화면 바로가기용 모바일 아이콘을 실제 로고 파일로 대체
   },
 }
 
