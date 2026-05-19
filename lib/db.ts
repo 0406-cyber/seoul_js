@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestContext } from '@cloudflare/next-on-pages';
+
 export type UsageRow = {
   username: string;
   date: string;
@@ -7,6 +9,19 @@ export type UsageRow = {
   gas_m3: number;
   co2_kg: number;
 };
+
+// Cloudflare Context로부터 안전하게 D1 DB 인스턴스를 가져오는 헬퍼 함수
+function getDb() {
+  try {
+    const context = getRequestContext();
+    if (context && context.env && context.env.DB) {
+      return context.env.DB;
+    }
+  } catch (e) {
+    // 빌드 타임 혹은 비런타임 대비 예외 처리
+  }
+  return (process.env as any).DB;
+}
 
 // CO2 계산 함수
 export async function computeCo2Kg(elecKwh: number, gasM3: number): Promise<number> {
@@ -23,7 +38,7 @@ function todayYmd(): string {
 
 /** 1. 데이터 저장 기능 (usage 테이블) */
 export async function saveUsage(username: string, elec: number, gas: number, co2: number): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare(
@@ -35,7 +50,7 @@ export async function saveUsage(username: string, elec: number, gas: number, co2
 
 /** 2. 로그인 및 횟수 업데이트 (users 테이블) */
 export async function loginUser(username: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   const existingUser = await db.prepare("SELECT username, login_count FROM users WHERE username = ?")
@@ -55,7 +70,7 @@ export async function loginUser(username: string): Promise<void> {
 
 /** 3. 포인트 업데이트 (users 테이블) */
 export async function updateUserPoints(username: string, points: number): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("UPDATE users SET points = points + ? WHERE username = ?")
@@ -65,7 +80,7 @@ export async function updateUserPoints(username: string, points: number): Promis
 
 /** 4. 리더보드 가져오기 (users 테이블) */
 export async function getLeaderboardViaApi(): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT username, login_count, points FROM users ORDER BY points DESC").all();
@@ -82,7 +97,7 @@ export async function getLeaderboardViaApi(): Promise<any[]> {
 
 /** 5. 포인트 상세 내역 저장 (logs 테이블) */
 export async function savePointLog(username: string, description: string, amount: number): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return;
 
   const dateStr = new Date().toLocaleDateString("ko-KR") + " " + new Date().toLocaleTimeString("ko-KR", {hour: '2-digit', minute:'2-digit'});
@@ -94,10 +109,9 @@ export async function savePointLog(username: string, description: string, amount
 
 /** 6. 포인트 상세 내역 불러오기 (logs 테이블) */
 export async function getPointLogs(username: string): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
-  // 순차 기록 후 인덱스 역순 가공 정렬 규칙 준수
   const { results } = await db.prepare("SELECT date, description, amount FROM logs WHERE username = ? ORDER BY id ASC").bind(username).all();
   
   return results.map((row: any, index: number) => ({
@@ -110,7 +124,7 @@ export async function getPointLogs(username: string): Promise<any[]> {
 
 /** 7. 전체 포인트 로그 리스트 조회 (logs 테이블) */
 export async function getAllPointLogs(): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT username, date, description, amount FROM logs ORDER BY id ASC").all();
@@ -126,11 +140,10 @@ export async function getAllPointLogs(): Promise<any[]> {
 
 /** 8. 피드 게시글 전체 가져오기 (feed 테이블) */
 export async function getFeedPostsViaApi(): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   try {
-    // 디비 레벨에서 최신순으로 딱 50개만 잘라서 읽어옴 (한도 극적으로 절약)
     const { results } = await db.prepare(
       "SELECT id, author, title, body, imageDataUrl, createdAt, likedBy FROM feed WHERE id IS NOT NULL AND id != '' ORDER BY createdAt DESC LIMIT 50"
     ).all();
@@ -152,7 +165,7 @@ export async function getFeedPostsViaApi(): Promise<any[]> {
 
 /** 9. 피드 게시글 수정 (feed 테이블) */
 export async function editFeedPostViaApi(postId: string, title: string, body: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("UPDATE feed SET title = ?, body = ? WHERE id = ?")
@@ -162,7 +175,7 @@ export async function editFeedPostViaApi(postId: string, title: string, body: st
 
 /** 10. 피드 게시글 삭제 (feed 테이블) */
 export async function deleteFeedPostViaApi(postId: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("DELETE FROM feed WHERE id = ?")
@@ -172,7 +185,7 @@ export async function deleteFeedPostViaApi(postId: string): Promise<void> {
 
 /** 11. 피드 게시글 저장 (feed 테이블) */
 export async function saveFeedPostViaApi(post: any): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare(
@@ -184,7 +197,7 @@ export async function saveFeedPostViaApi(post: any): Promise<void> {
 
 /** 12. 피드 좋아요 상태 동기화 (feed 테이블) */
 export async function updateFeedPostLikesViaApi(postId: string, likedBy: string[]): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("UPDATE feed SET likedBy = ? WHERE id = ?")
@@ -194,7 +207,7 @@ export async function updateFeedPostLikesViaApi(postId: string, likedBy: string[
 
 /** 13. 상품 교환 주문 저장 (orders 테이블) */
 export async function saveOrder(username: string, order: any): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare(
@@ -206,7 +219,7 @@ export async function saveOrder(username: string, order: any): Promise<void> {
 
 /** 14. 전체 주문 데이터 리스트 추출 (orders 테이블) */
 export async function getAllOrders(): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT id, username, itemId, itemName, cost, requestedAt, status FROM orders ORDER BY requestedAt ASC").all();
@@ -224,7 +237,7 @@ export async function getAllOrders(): Promise<any[]> {
 
 /** 15. 주문 상태 업데이트어 (orders 테이블) */
 export async function updateOrderStatus(orderId: string, newStatus: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("UPDATE orders SET status = ? WHERE id = ?")
@@ -234,7 +247,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string): Pro
 
 /** 16. 보안 인프라 시스템 로그 저장 (server_logs 테이블) */
 export async function saveSystemLog(action: string, ip: string, country: string, userAgent: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return;
 
   const dateStr = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
@@ -247,10 +260,9 @@ export async function saveSystemLog(action: string, ip: string, country: string,
 
 /** 17. 보안 시스템 로그 어레이 반환 (server_logs 테이블) */
 export async function getSystemLogs(): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
-  // 디비 자체에서 최신순 정렬 후 100개만 컷
   const { results } = await db.prepare(
     "SELECT id, date, action, ip, country, device FROM server_logs ORDER BY id DESC LIMIT 100"
   ).all();
@@ -267,7 +279,7 @@ export async function getSystemLogs(): Promise<any[]> {
 
 /** 18. 사용자의 가스/전기 이력 조회 (usage 테이블) */
 export async function getUsageHistory(username: string): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT date, elec_kwh, gas_m3, co2_kg FROM usage WHERE username = ? ORDER BY id ASC").bind(username).all();
@@ -282,7 +294,7 @@ export async function getUsageHistory(username: string): Promise<any[]> {
 
 /** 19. 친환경 인증 타임라인 라인업 추가 (certifications 테이블) */
 export async function saveCertification(username: string, date: string, type: string, points: number, id: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   await db.prepare("INSERT INTO certifications (id, username, date, type, points) VALUES (?, ?, ?, ?, ?)")
@@ -292,7 +304,7 @@ export async function saveCertification(username: string, date: string, type: st
 
 /** 20. 친환경 인증 타임라인 컴포넌트 로드 (certifications 테이블) */
 export async function getCertifications(username: string): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT id, date, type, points FROM certifications WHERE username = ? ORDER BY date ASC").bind(username).all();
@@ -307,7 +319,7 @@ export async function getCertifications(username: string): Promise<any[]> {
 
 /** 21. 코칭 챗 단건 컨텍스트 기록 (coaching_chats 테이블) */
 export async function saveChatMessage(username: string, role: string, content: string, id: string): Promise<void> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");
 
   const dateStr = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
@@ -319,7 +331,7 @@ export async function saveChatMessage(username: string, role: string, content: s
 
 /** 22. 코칭 챗 히스토리 복원 로드 (coaching_chats 테이블) */
 export async function getChatMessages(username: string): Promise<any[]> {
-  const db = process.env.DB;
+  const db = getDb();
   if (!db) return [];
 
   const { results } = await db.prepare("SELECT id, role, content FROM coaching_chats WHERE username = ? ORDER BY createdAt ASC").bind(username).all();

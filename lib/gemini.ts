@@ -1,35 +1,43 @@
 import { GoogleGenAI } from "@google/genai";
+import { getRequestContext } from '@cloudflare/next-on-pages';
 
-/**
- * @google/genai SDK를 사용하여 모델의 응답을 가져옵니다.
- * 싱글톤 인스턴스를 통해 API 키 누락으로 인한 런타임 에러를 방지합니다.
- */
 const GEMMA_MODELS = [
-  "gemma-4-31b-it",     // 1순위
-  "gemma-4-26b-a4b-it", // 2순위
+  "gemma-4-31b-it",     
+  "gemma-4-26b-a4b-it", 
 ];
 
-// 이미지 분석을 위한 Gemini 모델 리스트
 const GEMINI_VISION_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite-preview",
   "gemini-2.5-flash-lite",
 ];
 
-// 싱글톤 인스턴스 관리
 let aiInstance: any = null;
 
 function getAI() {
   if (!aiInstance) {
-    // Cloudflare Pages 환경 변수 우선 순위 설정
-    const key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    let key = undefined;
+    
+    // Cloudflare Pages 런타임 암호화 변수(Secrets) 우선 로드
+    try {
+      const context = getRequestContext();
+      if (context && context.env) {
+        key = context.env.GEMINI_API_KEY || context.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      }
+    } catch (e) {
+      // 컴파일 타임 대응 예외처리
+    }
+    
+    // 로컬 환경 또는 하위 호환성용 대피책
+    if (!key) {
+      key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    }
     
     if (!key) {
       console.error("⚠️ Gemini API Key가 설정되지 않았습니다.");
       return null;
     }
     
-    // @google/genai SDK는 객체 형태로 키를 받습니다.
     aiInstance = new GoogleGenAI({ apiKey: key });
   }
   return aiInstance;
@@ -50,7 +58,6 @@ export async function callTextApiWithFallback(
 
   for (const modelName of models) {
     try {
-      // @google/genai 최신 호출 방식 적용
       const response = await ai.models.generateContent({
         model: modelName,
         systemInstruction: systemInstruction,
@@ -60,7 +67,6 @@ export async function callTextApiWithFallback(
         }
       });
 
-      // SDK가 제공하는 text 속성만 사용 (기존 finalCleanUp 제거)
       if (response && response.text) {
         return response.text.trim();
       }
@@ -84,16 +90,12 @@ export async function askGemmaCustomQuestion(userMessage: string): Promise<strin
   return callTextApiWithFallback(userMessage, GEMMA_MODELS, systemInstruction);
 }
 
-// 이미지 분석 결과 타입
 export type ImageAnalysisResult = {
   action_found?: string;
   description?: string;
   estimated_save_kwh?: string;
 } | null;
 
-/**
- * 이미지 분석 시 JSON 응답을 추출하기 위한 최소한의 파싱 로직은 유지합니다.
- */
 function extractJsonObject(text: string): ImageAnalysisResult {
   const trimmed = text.trim();
   let jsonStr = trimmed;
@@ -131,7 +133,6 @@ export async function analyzeImageWithGemini(
     try {
       const prompt = `이미지를 분석해서 에너지 절약 행동을 파악하고 JSON으로만 답변해: {"action_found": "true/false", "description": "설명", "estimated_save_kwh": "숫자"}`;
 
-      // SDK 방식의 멀티모달 호출
       const result = await ai.models.generateContent({
         model: modelName,
         contents: [
@@ -158,15 +159,8 @@ export async function analyzeImageWithGemini(
   return { result: null, error: `상세 에러: ${lastErrorDetails}` };
 }
 
-// ============================================================================
-// [추가된 기능] 멀티턴 대화 및 스트리밍 처리
-// ============================================================================
-
 /**
- * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환하는 제너레이터 함수입니다.
- * @param message 사용자 입력 메시지
- * @param history 이전 대화 내역 배열 (role과 parts 객체 구조)
- * @param modelName 사용할 모델 (기본값: gemini-3-flash-preview)
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환하는 제너레이터 함수
  */
 export async function* streamChatWithMessage(
   message: string,
@@ -176,16 +170,13 @@ export async function* streamChatWithMessage(
   const ai = getAI();
   if (!ai) throw new Error("⚠️ Gemini API Key가 설정되지 않았습니다.");
 
-  // 대화 세션 생성 (이전 기록 포함)
   const chat = ai.chats.create({
     model: modelName,
     history: history,
   });
 
-  // 스트리밍으로 메시지 전송
   const stream = await chat.sendMessageStream({ message });
 
-  // 청크(chunk) 단위로 텍스트가 들어올 때마다 반환(yield)
   for await (const chunk of stream) {
     if (chunk.text) {
       yield chunk.text;
