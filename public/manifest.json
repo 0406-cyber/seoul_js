@@ -3,18 +3,13 @@
   "short_name": "Enerview",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#121212",
+  "theme_color": "#121212",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "/seoul_logo.png",
+      "sizes": "any",
       "type": "image/png"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-          "type": "image/png"
-        }
-      ]
     }
+  ]
+}

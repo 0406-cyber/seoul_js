@@ -19,11 +19,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/icon.svg', // 👈 실제 존재하는 파일로 브라우저 탭 아이콘 변경
+        url: '/icon.svg', // 👈 실제 존재하는 파일로 브라우저 탭 아이콘 설정
         type: 'image/svg+xml',
       },
     ],
-    apple: '/seoul_logo.png', // 👈 홈 화면 바로가기용 모바일 아이콘도 실제 로고 파일로 대체
+    apple: '/seoul_logo.png', // 👈 홈 화면 바로가기용 모바일 아이콘을 실제 로고 파일로 대체
   },
 }
 
@@ -64,6 +64,20 @@ export default function RootLayout({
         >
           {children}
           <Toaster richColors position="top-center" />
+
+          {/* ✨ 순수 서비스 워커 등록 스크립트 추가 */}
+          <Script id="register-sw" strategy="afterInteractive">
+            {`
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) { console.log('ServiceWorker registration successful'); },
+                    function(err) { console.log('ServiceWorker registration failed: ', err); }
+                  );
+                });
+              }
+            `}
+          </Script>
         </ThemeProvider>
 
       </body>
