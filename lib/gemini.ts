@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import { getRequestContext } from '@cloudflare/next-on-pages';
 
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     
@@ -18,17 +17,18 @@ function getAI() {
   if (!aiInstance) {
     let key = undefined;
     
-    // Cloudflare Pages 런타임 암호화 변수(Secrets) 우선 로드
+    // Cloudflare Pages 런타임 Secrets 자산을 패키지 임포트 없이 전역 Symbol로 직접 추출
     try {
-      const context = getRequestContext();
+      const cloudflareSymbol = Symbol.for("__cloudflare-request-context__");
+      const context = (globalThis as any)[cloudflareSymbol];
       if (context && context.env) {
         key = context.env.GEMINI_API_KEY || context.env.NEXT_PUBLIC_GEMINI_API_KEY;
       }
     } catch (e) {
-      // 컴파일 타임 대응 예외처리
+      // 빌드 타임 컴파일 예외 방어
     }
     
-    // 로컬 환경 또는 하위 호환성용 대피책
+    // 로컬 개발 환경 또는 하위 호환성용 대피책
     if (!key) {
       key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     }
