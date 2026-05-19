@@ -1,6 +1,7 @@
 {
-  "name": "Enerview",
+  "name": "Seoul Enerview",
   "short_name": "Enerview",
+  "description": "서울시 친환경 에너지 모니터링 및 AI 코칭 서비스",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
@@ -23,6 +24,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Enerview 모바일 대시보드 화면"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Enerview 데스크톱 모니터링 화면"
     }
   ]
 }
