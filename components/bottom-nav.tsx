@@ -47,7 +47,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           })}
 
           {/* 더보기 버튼 */}
-          <MoreTabsSheet activeTab={activeTab} onTabChange={onTabChange}>
+          {/*<MoreTabsSheet activeTab={activeTab} onTabChange={onTabChange}>
             <button
               className={`
                 relative flex flex-col items-center justify-center min-w-[4rem] h-14 rounded-3xl transition-all duration-500 px-2
@@ -61,7 +61,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               <Ellipsis className="w-5 h-5" />
               <span className="mt-1 text-[10px] font-black tracking-tight text-muted-foreground">더보기</span>
             </button>
-          </MoreTabsSheet>
+          </MoreTabsSheet>*/}
         </div>
       </nav>
     </div>

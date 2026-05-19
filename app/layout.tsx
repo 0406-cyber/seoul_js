@@ -15,22 +15,15 @@ export const metadata: Metadata = {
   title: 'Enerview',
   description: '에너지 사용량을 분석, AI 쳇봇',
   generator: 'v0.app',
+  manifest: '/manifest.json', // 👈 PWA 매니페스트 파일 연결 추가
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
+        url: '/icon.svg', // 👈 실제 존재하는 파일로 브라우저 탭 아이콘 변경
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/seoul_logo.png', // 👈 홈 화면 바로가기용 모바일 아이콘도 실제 로고 파일로 대체
   },
 }
 
