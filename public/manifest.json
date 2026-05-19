@@ -1,8 +1,9 @@
 {
-  "name": "Seoul Enerview",
+  "name": "Enerview",
   "short_name": "Enerview",
   "description": "서울시 친환경 에너지 모니터링 및 AI 코칭 서비스",
-  "start_url": "/",
+  "id": "/?v=2",
+  "start_url": "/?utm_source=pwa&v=2",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
