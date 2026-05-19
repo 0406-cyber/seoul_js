@@ -197,7 +197,7 @@ export function CarbonMapTab() {
             <div className="flex-1">
               <p className="text-[11px] font-black opacity-70 uppercase tracking-wider">Analysis Insight</p>
               <p className="text-sm font-bold mt-1 leading-tight">
-                2024년 통계청 데이터 기준으로 일단 넣어놨고, 지도 부분이랑 데이터는 수정해야합니다. qgis 방식으로 넣을 수 있습니다. 
+                2024년 통계청 데이터로 일단 넣어놨습니다, 다른 방식으로도 넣을 수 있음. 
               </p>
             </div>
             <ChevronRight className="w-5 h-5 opacity-40 group-hover:translate-x-1 transition-transform" />

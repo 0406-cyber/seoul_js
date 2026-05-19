@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
-// ⭐️ 아이콘에 수정(Pencil), 삭제(Trash2) 추가
 import {
   Heart,
   ImagePlus,
@@ -22,8 +21,8 @@ import {
   markClaimed,
   saveNewPostAsync,
   updateLikesAsync,
-  editPostAsync,      // ⭐️ 추가됨
-  deletePostAsync,    // ⭐️ 추가됨
+  editPostAsync,    
+  deletePostAsync, 
   weekKey,
 } from "@/lib/citizen-feed-storage"
 
@@ -49,8 +48,6 @@ export function CitizenFeedTab({
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  // ⭐️ 수정 모드 상태 관리
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editBody, setEditBody] = useState("")
@@ -175,27 +172,25 @@ export function CitizenFeedTab({
     }
   }
 
-  // ⭐️ 수정 시작 핸들러
+  // 수정 시작 핸들러
   const handleEditStart = (post: CitizenPost) => {
     setEditingPostId(post.id)
     setEditTitle(post.title)
     setEditBody(post.body)
   }
 
-  // ⭐️ 수정 취소 핸들러
+  // 수정 취소 핸들러
   const handleEditCancel = () => {
     setEditingPostId(null)
     setEditTitle("")
     setEditBody("")
   }
 
-  // ⭐️ 수정 완료 저장 핸들러
+  // 수정 완료 저장 핸들러
   const handleEditSave = async (postId: string) => {
     const t = clampText(editTitle, 60)
     const b = clampText(editBody, 400)
     if (!t || !b) return
-
-    // 낙관적 업데이트 (화면 먼저 적용)
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, title: t, body: b } : p))
     setEditingPostId(null)
 
@@ -206,11 +201,9 @@ export function CitizenFeedTab({
     }
   }
 
-  // ⭐️ 삭제 핸들러
+  // 삭제 핸들러
   const handleDelete = async (postId: string) => {
     if (!window.confirm("정말로 이 게시글을 삭제하시겠습니까?")) return
-
-    // 낙관적 업데이트 (화면에서 우선 숨김)
     setPosts(prev => prev.filter(p => p.id !== postId))
 
     try {

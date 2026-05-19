@@ -160,7 +160,7 @@ export async function analyzeImageWithGemini(
 }
 
 /**
- * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환하는 제너레이터 함수
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환
  */
 export async function* streamChatWithMessage(
   message: string,

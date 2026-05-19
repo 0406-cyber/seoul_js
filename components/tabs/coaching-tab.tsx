@@ -196,7 +196,7 @@ export function CoachingTab({
                         : "bg-card border border-border text-foreground rounded-bl-lg"
                     }`}
                   >
-                    {/* ✨ 스트리밍 시 빈 말풍선 안에 기존의 로딩 점을 보여주는 로직 추가 */}
+                    {/* 스트리밍 시 빈 말풍선 안에 기존의 로딩 점을 보여주는 로직 추가 */}
                     {message.role === "assistant" && message.content === "" ? (
                       <div className="flex gap-1 py-2">
                         <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -213,7 +213,7 @@ export function CoachingTab({
               </div>
             ))}
 
-            {/* 스트리밍 로직에서는 마지막 말풍선 내부에 로딩 바가 들어가므로 중복 렌더링 방지 */}
+            {/* 스트리밍 로직 마지막 말풍선 내부에 로딩 바 중복 렌더링 방지 */}
             {isLoading && messages.at(-1)?.content !== "" && (
               <div className="flex justify-start">
                 <div className="flex items-end gap-2">

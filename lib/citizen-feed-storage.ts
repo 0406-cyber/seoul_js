@@ -2,8 +2,8 @@ import {
   getFeedPostsViaApi, 
   saveFeedPostViaApi, 
   updateFeedPostLikesViaApi,
-  editFeedPostViaApi,    // ⭐️ 추가됨
-  deleteFeedPostViaApi   // ⭐️ 추가됨
+  editFeedPostViaApi,
+  deleteFeedPostViaApi  
 } from "./db";
 
 export type CitizenPost = {
@@ -30,12 +30,11 @@ export async function updateLikesAsync(postId: string, likedBy: string[]): Promi
   await updateFeedPostLikesViaApi(postId, likedBy);
 }
 
-// ⭐️ 수정 비동기 함수 추가
+//수정 비동기 함수
 export async function editPostAsync(postId: string, title: string, body: string): Promise<void> {
   await editFeedPostViaApi(postId, title, body);
 }
 
-// ⭐️ 삭제 비동기 함수 추가
 export async function deletePostAsync(postId: string): Promise<void> {
   await deleteFeedPostViaApi(postId);
 }

@@ -44,9 +44,6 @@ interface CampaignTabProps {
   onGrantPoints: (points: number, reason: string) => Promise<void>
 }
 
-// ============================================================
-// 1. MBTI / ECO 성향 테스트
-// ============================================================
 
 type EcoPersonality =
   | "자연수호자" | "에코리더" | "실천하는환경가" | "관심있는시민"
@@ -192,9 +189,6 @@ const GOOD_ACTIONS: GoodAction[] = [
   { id: "ga-12", title: "걸어서 10분 거리는 걷기", description: "초근거리는 자동차 대신 도보로", icon: <Footprints className="w-5 h-5" />, category: "교통", co2Save: "76kg/년", difficulty: "쉬움", isDone: false },
 ]
 
-// ============================================================
-// 3. 하루 스토리텔링 - 탄소 배출 지점 찾기
-// ============================================================
 
 interface StoryStep {
   time: string
@@ -308,9 +302,6 @@ const STORY_STEPS: StoryStep[] = [
   },
 ]
 
-// ============================================================
-// Sub-components
-// ============================================================
 
 function MbtiQuizSection({ onGrantPoints, nickname }: { onGrantPoints: (p: number, r: string) => Promise<void>; nickname: string }) {
   const [step, setStep] = useState<"start" | "quiz" | "result">("start")
@@ -725,10 +716,6 @@ function StorySection({ onGrantPoints }: { onGrantPoints: (p: number, r: string)
     </div>
   )
 }
-
-// ============================================================
-// Main CampaignTab
-// ============================================================
 
 type CampaignSubTab = "mbti" | "actions" | "story"
 

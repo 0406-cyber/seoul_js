@@ -10,7 +10,7 @@ export type UsageRow = {
   co2_kg: number;
 };
 
-// Cloudflare Context로부터 안전하게 D1 DB 인스턴스를 가져오는 헬퍼 함수
+// Cloudflare Context로부터 D1 DB 인스턴스를 가져오는 헬퍼 함수
 function getDb() {
   try {
     const context = getRequestContext();
@@ -317,7 +317,7 @@ export async function getCertifications(username: string): Promise<any[]> {
   })).reverse();
 }
 
-/** 21. 코칭 챗 단건 컨텍스트 기록 (coaching_chats 테이블) */
+/**코칭 챗 단건 컨텍스트 기록 (coaching_chats 테이블) */
 export async function saveChatMessage(username: string, role: string, content: string, id: string): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("D1 데이터베이스가 바인딩되지 않았습니다.");

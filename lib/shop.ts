@@ -6,7 +6,7 @@ export type ShopItem = {
   imageEmoji?: string
 }
 
-// MVP: 굿즈/상품 카탈로그 (실물 발송/수령은 운영 프로세스로 연결)
+// MVP: 굿즈/상품 카탈로그 수정필요
 export const SHOP_ITEMS: ShopItem[] = [
   {
     id: "tumbler",

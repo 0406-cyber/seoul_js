@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ✨ 라이트 모드 (기본 상태) */
+/* 라이트 모드 (기본 상태) */
 :root {
   --background: #F8FAFC;
   --foreground: #0F172A;
@@ -49,7 +49,7 @@
   --glass-morphism-bg: rgba(255, 255, 255, 0.5);
 }
 
-/* 🌙 다크 모드 */
+/* 다크 모드 */
 .dark {
   --background: #121212;
   --foreground: #ffffff;
@@ -158,7 +158,6 @@
     animation: eco-hop 1.4s ease-in-out infinite;
   }
 
-  /* ✨ Modern Design Utilities 수정됨 */
   .glass-card {
     background-color: var(--glass-bg);
     backdrop-filter: blur(24px);
