@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useRef } from "react" // 💡 useEffect와 useRef를 추가로 임포트했습니다.
 import { Sparkles, Send, Bot, User, MessageCircle, Clock, Shield } from "lucide-react"
 
 interface Message {
@@ -23,6 +23,9 @@ export function CoachingTab({
   isLoading,
 }: CoachingTabProps) {
   const [input, setInput] = useState("")
+  
+  // 💡 스크롤 최하단 위치를 가리킬 참조(Ref) 객체를 생성합니다.
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const stats = useMemo(() => {
     const count = messages.length
@@ -31,6 +34,11 @@ export function CoachingTab({
     const hasAssistant = messages.some((m) => m.role === "assistant")
     return { count, lastRole, hasAssistant }
   }, [messages])
+
+  // 💡 메시지 내역이 변경되거나 로딩 상태가 바뀔 때마다 스크롤을 최하단으로 내립니다.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isLoading])
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return
@@ -47,65 +55,6 @@ export function CoachingTab({
 
   return (
     <div className="space-y-6 pb-28">
-      {/* KPI strip */}
-      {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="bg-card rounded-3xl p-4 border border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center">
-              <MessageCircle className="w-4 h-4 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">대화 수</p>
-              <p className="text-lg font-black text-foreground truncate">
-                {stats.count.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-3xl p-4 border border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-blue-500" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">상태</p>
-              <p className="text-lg font-black text-foreground truncate">
-                {isLoading ? "응답 중" : "대기"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-3xl p-4 border border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center">
-              <Bot className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">서버 테스트</p>
-              <p className="text-lg font-black text-foreground truncate">
-                {stats.hasAssistant ? "ON" : "READY"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-3xl p-4 border border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">???</p>
-              <p className="text-lg font-black text-foreground truncate">
-                “Undefined”
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>*/}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* CTA / tips */}
         <div className="glass-morphism rounded-[2.5rem] p-8 space-y-5">
@@ -196,7 +145,6 @@ export function CoachingTab({
                         : "bg-card border border-border text-foreground rounded-bl-lg"
                     }`}
                   >
-                    {/* 스트리밍 시 빈 말풍선 안에 기존의 로딩 점을 보여주는 로직 추가 */}
                     {message.role === "assistant" && message.content === "" ? (
                       <div className="flex gap-1 py-2">
                         <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -213,7 +161,6 @@ export function CoachingTab({
               </div>
             ))}
 
-            {/* 스트리밍 로직 마지막 말풍선 내부에 로딩 바 중복 렌더링 방지 */}
             {isLoading && messages.at(-1)?.content !== "" && (
               <div className="flex justify-start">
                 <div className="flex items-end gap-2">
@@ -239,6 +186,9 @@ export function CoachingTab({
                 </div>
               </div>
             )}
+
+            {/* 💡 스크롤 트래킹용 더미 div 엘리먼트 추가 */}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input dock */}
@@ -266,3 +216,4 @@ export function CoachingTab({
     </div>
   )
 }
+
