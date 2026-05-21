@@ -14,7 +14,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const action = body.action || '페이지 접속';
 
-    // 구글 시트에 기록
     await saveSystemLog(action, ip, country, userAgent);
 
     return NextResponse.json({ success: true });

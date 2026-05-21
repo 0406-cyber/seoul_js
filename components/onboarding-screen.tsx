@@ -67,12 +67,12 @@ export function OnboardingScreen({ onComplete, checkIsExistingUser }: Onboarding
         {step === 1 ? (
           <>
             <div className="text-center mb-12">
-              <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mx-auto mb-6 overflow-hidden">
+              <div className="flex items-center justify-center mx-auto mt-6 mb-6">
                 <Image
                   src="/seoul_logo.png"
                   alt="Enerview Logo"
-                  width={56}
-                  height={56}
+                  width={120} 
+                  height={120}
                   className="object-contain"
                   priority
                 />
