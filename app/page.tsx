@@ -57,7 +57,6 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
-  thinking?: string // 💡 실시간 생각 데이터를 저장하기 위한 규격 추가
 }
 
 interface CertificationHistory {
@@ -392,7 +391,6 @@ function MainContent() {
     }
   }, [nickname, electricityUsage, gasUsage])
 
-  // 💡 [개선 핵심] 서버의 JSON Line 데이터를 행 단위로 안전하게 쪼개서 분류 적재하는 파서 장착
   const handleSendMessage = useCallback(async (content: string) => {
     const userMessageId = Date.now().toString();
     const userMessage: Message = {
@@ -411,7 +409,7 @@ function MainContent() {
     setMessages((prev) => [
       ...prev, 
       userMessage, 
-      { id: assistantMessageId, role: "assistant", content: "", thinking: "" }
+      { id: assistantMessageId, role: "assistant", content: "" }
     ]);
     setIsCoachingLoading(true);
 
@@ -434,7 +432,6 @@ function MainContent() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let done = false;
-      let lineBuffer = ""; // 깨진 청크 결합용 임시 버퍼
       let fullAssistantMessage = "";
 
       while (!done) {
@@ -442,33 +439,16 @@ function MainContent() {
         done = readerDone;
 
         if (value) {
-          lineBuffer += decoder.decode(value, { stream: true });
-          const lines = lineBuffer.split("\n");
-          lineBuffer = lines.pop() || ""; // 불완전한 마지막 줄 보관
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const parsed = JSON.parse(line);
-              setMessages((prev) => 
-                prev.map((msg) => {
-                  if (msg.id === assistantMessageId) {
-                    if (parsed.type === "think") {
-                      // 💡 생각 청크 누적
-                      return { ...msg, thinking: (msg.thinking || "") + parsed.text };
-                    } else if (parsed.type === "text") {
-                      // 💡 실질 답변 청크 누적
-                      fullAssistantMessage += parsed.text;
-                      return { ...msg, content: msg.content + parsed.text };
-                    }
-                  }
-                  return msg;
-                })
-              );
-            } catch (e) {
-              // 불완전 파싱 예외 복구 방어
-            }
-          }
+          const chunk = decoder.decode(value, { stream: true });
+          fullAssistantMessage += chunk;
+          
+          setMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + chunk } 
+                : msg
+            )
+          );
         }
       }
 
@@ -478,12 +458,18 @@ function MainContent() {
 
     } catch (e: any) {
       toast.error("AI 응답 실패: " + e.message);
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: "⚠️ 통신 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." } 
+            : msg
+        )
+      );
     } finally {
       setIsCoachingLoading(false);
     }
   }, [messages, nickname]);
 
-  // 💡 [개선 핵심] 대형 추천 자동 조언 스크립트 단에도 동등한 스플리터 파서 장착
   const handleRequestAdvice = useCallback(async () => {
       setIsCoachingLoading(true);
       try {
@@ -512,7 +498,7 @@ function MainContent() {
         
         setMessages((prev) => [
           ...prev,
-          { id: assistantMessageId, role: "assistant", content: "", thinking: "" }
+          { id: assistantMessageId, role: "assistant", content: "" }
         ]);
 
         const res = await fetch("/api/chat", {
@@ -529,7 +515,6 @@ function MainContent() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let done = false;
-        let lineBuffer = "";
         let fullAssistantMessage = "";
 
         while (!done) {
@@ -537,29 +522,16 @@ function MainContent() {
           done = readerDone;
 
           if (value) {
-            lineBuffer += decoder.decode(value, { stream: true });
-            const lines = lineBuffer.split("\n");
-            lineBuffer = lines.pop() || "";
-
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              try {
-                const parsed = JSON.parse(line);
-                setMessages((prev) => 
-                  prev.map((msg) => {
-                    if (msg.id === assistantMessageId) {
-                      if (parsed.type === "think") {
-                        return { ...msg, thinking: (msg.thinking || "") + parsed.text };
-                      } else if (parsed.type === "text") {
-                        fullAssistantMessage += parsed.text;
-                        return { ...msg, content: msg.content + parsed.text };
-                      }
-                    }
-                    return msg;
-                  })
-                );
-              } catch (e) {}
-            }
+            const chunk = decoder.decode(value, { stream: true });
+            fullAssistantMessage += chunk;
+            
+            setMessages((prev) => 
+              prev.map((msg) => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: msg.content + chunk } 
+                  : msg
+              )
+            );
           }
         }
 
@@ -585,6 +557,7 @@ function MainContent() {
     }
 
     try {
+      // 🚀 [수정 완료] 브라우저 환경에서 직접 인프라 변수를 참조하여 튕기던 기존 호출을 서버 라우트('/api/analyze') 호출로 안전하게 우회 처리합니다.
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -622,7 +595,7 @@ function MainContent() {
       try {
         await updateUserPoints(nickname, gainedPoints)
         setPoints((p) => p + gainedPoints)
-        const description = result.description || "energy_behavior"
+        const description = result.description || "에너지 절약 행동"
         recordPoint(nickname, description, gainedPoints);
 
         const newId = Date.now().toString()
@@ -991,4 +964,3 @@ export default function Home() {
     </Suspense>
   )
 }
-
