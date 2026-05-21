@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useState, useEffect, useRef } from "react" // 💡 useEffect와 useRef를 추가로 임포트했습니다.
-import { Sparkles, Send, Bot, User, MessageCircle, Clock, Shield } from "lucide-react"
+import { useMemo, useState, useEffect, useRef } from "react"
+import { Sparkles, Send, Bot, User } from "lucide-react"
 
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  thinking?: string // 💡 생각이 흘러나오는 인터페이스 확장 매핑
 }
 
 interface CoachingTabProps {
@@ -23,8 +24,6 @@ export function CoachingTab({
   isLoading,
 }: CoachingTabProps) {
   const [input, setInput] = useState("")
-  
-  // 💡 스크롤 최하단 위치를 가리킬 참조(Ref) 객체를 생성합니다.
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const stats = useMemo(() => {
@@ -35,7 +34,6 @@ export function CoachingTab({
     return { count, lastRole, hasAssistant }
   }, [messages])
 
-  // 💡 메시지 내역이 변경되거나 로딩 상태가 바뀔 때마다 스크롤을 최하단으로 내립니다.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isLoading])
@@ -138,30 +136,53 @@ export function CoachingTab({
                       <Bot className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  <div
-                    className={`rounded-3xl px-5 py-3 ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-lg"
-                        : "bg-card border border-border text-foreground rounded-bl-lg"
-                    }`}
-                  >
-                    {message.role === "assistant" && message.content === "" ? (
-                      <div className="flex gap-1 py-2">
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  
+                  <div className="flex flex-col gap-1.5 w-full">
+                    {/* 💡 [신규 구현] AI가 추론하고 분석 중인 '생각 이력'이 존재할 때 실시간 노출되는 인터랙티브 박스 */}
+                    {message.role === "assistant" && message.thinking && (
+                      <div className="mb-0.5 bg-secondary/40 border border-border/60 rounded-2xl p-3 text-xs text-muted-foreground shadow-inner max-w-full">
+                        <details open className="group cursor-pointer select-none">
+                          <summary className="font-bold text-primary flex items-center gap-1.5 list-none outline-none">
+                            <Sparkles className="w-3.5 h-3.5 animate-pulse text-primary" />
+                            <span>AI 생각 과정 분석 중...</span>
+                            <span className="text-[10px] bg-primary/10 px-1.5 py-0.5 rounded-md ml-auto group-open:hidden">펼치기</span>
+                            <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded-md ml-auto hidden group-open:inline">접기</span>
+                          </summary>
+                          <p className="mt-2 text-muted-foreground/80 whitespace-pre-wrap leading-relaxed font-mono border-t border-border/40 pt-2 max-h-40 overflow-y-auto">
+                            {message.thinking}
+                          </p>
+                        </details>
                       </div>
-                    ) : (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
-                      </p>
+                    )}
+
+                    {/* 최종 텍스트 답변 말풍선 */}
+                    {(message.content || message.content === "") && (
+                      <div
+                        className={`rounded-3xl px-5 py-3 ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-lg"
+                            : "bg-card border border-border text-foreground rounded-bl-lg"
+                        }`}
+                      >
+                        {message.role === "assistant" && message.content === "" ? (
+                          <div className="flex gap-1 py-2">
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {message.content}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
             ))}
 
-            {isLoading && messages.at(-1)?.content !== "" && (
+            {isLoading && messages.at(-1)?.content === "" && messages.at(-1)?.thinking === "" && (
               <div className="flex justify-start">
                 <div className="flex items-end gap-2">
                   <div className="w-8 h-8 rounded-2xl bg-secondary flex items-center justify-center">
@@ -169,25 +190,15 @@ export function CoachingTab({
                   </div>
                   <div className="bg-card border border-border rounded-3xl rounded-bl-lg px-5 py-4">
                     <div className="flex gap-1">
-                      <span
-                        className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      />
-                      <span
-                        className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      />
-                      <span
-                        className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      />
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </div>
               </div>
             )}
-
-            {/* 💡 스크롤 트래킹용 더미 div 엘리먼트 추가 */}
+            
             <div ref={messagesEndRef} />
           </div>
 
@@ -216,4 +227,3 @@ export function CoachingTab({
     </div>
   )
 }
-
