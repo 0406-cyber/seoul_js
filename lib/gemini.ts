@@ -1,7 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 import { getRequestContext } from '@cloudflare/next-on-pages'; 
-
-// 1. 원래 모델 리스트 100% 동일하게 유지 (절대 변경 없음)
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     
   "gemma-4-26b-a4b-it", 
@@ -43,6 +41,9 @@ function getAI() {
   return aiInstance;
 }
 
+/**
+ * 텍스트 API 호출 (Fallback 포함)
+ */
 export async function callTextApiWithFallback(
   prompt: string,
   models: string[] = GEMMA_MODELS,
@@ -149,12 +150,12 @@ export async function analyzeImageWithGemini(
 }
 
 /**
- * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환 (원래 기본값 모델명 유지)
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환 (Function Calling 반영 수정본)
  */
 export async function* streamChatWithMessage(
   message: string,
   history: { role: "user" | "model"; parts: { text: string }[] }[] = [],
-  modelName: string = "gemini-3-flash-preview" // 💡 원래 쓰시던 기본값 모델명으로 복구 완료
+  modelName: string = "gemini-3-flash-preview"
 ) {
   const ai = getAI();
   if (!ai) throw new Error("⚠️ Gemini API Key가 설정되지 않았습니다.");
@@ -215,16 +216,15 @@ export async function* streamChatWithMessage(
             functionResult = await getPointLogs(targetUser);
           }
 
+          // 💡 [버그 수정 핵심 위치] 불필요한 role 래핑을 제거하고 SDK 가 규정하는 순수한 Part 규격 배열로 전송합니다.
           const followUpStream = await chat.sendMessageStream({
             message: [
               {
-                role: "tool",
-                parts: [{
-                  functionResponse: {
-                    name: call.name,
-                    response: { result: functionResult || "조회된 데이터가 없습니다." }
-                  }
-                }]
+                functionResponse: {
+                  id: call.id, // 멀티턴 컨텍스트 정렬을 위해 고유 ID 필수 매핑
+                  name: call.name,
+                  response: { result: functionResult || "조회된 데이터가 없습니다." }
+                }
               }
             ]
           });
@@ -246,3 +246,4 @@ export async function* streamChatWithMessage(
     }
   }
 }
+
