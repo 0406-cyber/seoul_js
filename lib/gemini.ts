@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { getRequestContext } from '@cloudflare/next-on-pages'; 
+
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     
   "gemma-4-26b-a4b-it", 
@@ -17,15 +18,12 @@ let aiInstance: any = null;
 function getAI() {
   if (!aiInstance) {
     let key = undefined;
-    
     try {
       const context = getRequestContext();
       if (context && context.env) {
         key = context.env.GEMINI_API_KEY || context.env.NEXT_PUBLIC_GEMINI_API_KEY;
       }
-    } catch (e) {
-      // 빌드 타임 컴파일 예외 방어
-    }
+    } catch (e) {}
     
     if (!key) {
       key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -35,15 +33,11 @@ function getAI() {
       console.error("⚠️ Gemini API Key가 설정되지 않았습니다.");
       return null;
     }
-    
     aiInstance = new GoogleGenAI({ apiKey: key });
   }
   return aiInstance;
 }
 
-/**
- * 텍스트 API 호출 (Fallback 포함)
- */
 export async function callTextApiWithFallback(
   prompt: string,
   models: string[] = GEMMA_MODELS,
@@ -51,29 +45,21 @@ export async function callTextApiWithFallback(
 ): Promise<string> {
   const ai = getAI();
   if (!ai) return "⚠️ API 키 설정 오류 (환경 변수를 확인하세요)";
-
   let lastErrorDetails = "알 수 없는 오류";
-
   for (const modelName of models) {
     try {
       const response = await ai.models.generateContent({
         model: modelName,
         systemInstruction: systemInstruction,
         contents: prompt,
-        config: {
-          temperature: 0.6,
-        }
+        config: { temperature: 0.6 }
       });
-
-      if (response && response.text) {
-        return response.text.trim();
-      }
+      if (response && response.text) return response.text.trim();
     } catch (error: any) {
       lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
       continue;
     }
   }
-
   return `⚠️ AI 호출 실패 원인:\n\n${lastErrorDetails}`;
 }
 
@@ -100,18 +86,15 @@ export async function analyzeImageWithGemini(
 ): Promise<{ result: ImageAnalysisResult; error: string | null }> {
   const ai = getAI();
   if (!ai) return { result: null, error: "API 키 설정 오류" };
-
   let lastErrorDetails = ""; 
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return { result: null, error: "이미지 데이터 형식이 올바르지 않습니다." };
-
   const mimeType = mimeTypeHint || match[1] || "image/jpeg";
   const encodedImage = match[2];
 
   for (const modelName of GEMINI_VISION_MODELS) {
     try {
       const prompt = `이미지를 분석해서 에너지 절약 행동을 파악해 주세요.`;
-
       const response = await ai.models.generateContent({
         model: modelName,
         contents: [
@@ -136,10 +119,8 @@ export async function analyzeImageWithGemini(
           }
         }
       });
-
       if (response && response.text) {
-        const parsed = JSON.parse(response.text) as ImageAnalysisResult;
-        return { result: parsed, error: null };
+        return { result: JSON.parse(response.text) as ImageAnalysisResult, error: null };
       }
     } catch (error: any) {
       lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
@@ -150,7 +131,7 @@ export async function analyzeImageWithGemini(
 }
 
 /**
- * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환 (Function Calling 반영 수정본)
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환 (Reasoning Chain JSON 프로토콜 반영)
  */
 export async function* streamChatWithMessage(
   message: string,
@@ -194,19 +175,32 @@ export async function* streamChatWithMessage(
     history: history,
     config: {
       tools: enerviewTools, 
-      systemInstruction: "너는 친환경 에너지 가이드 에너뷰(Enerview) 코치야. 사용자가 과거 기록이나 포인트 조회를 요청하면 관련 함수를 알아서 호출해줘. 모든 답변은 따뜻한 한국어로 해줘."
+      systemInstruction: "너는 친환경 에너지 가이드 에너뷰(Enerview) 코치야. 사용자가 과거 기록이나 포인트 조회를 요청하면 관련 함수를 알아서 호출해줘. 모든 답변은 따뜻한 한국어로 해줘. 답변하기 전에 단계적으로 추론하는 경우 추론 과정을 충실히 보여줘."
     }
   });
 
   const stream = await chat.sendMessageStream({ message });
 
   for await (const chunk of stream) {
+    // 1. 만약 엔진 내부의 구조적 추론 파트(Thought)가 있다면 생각 스트림으로 전송
+    const candidate = chunk.candidates?.[0];
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.thought && part.text) {
+          yield JSON.stringify({ type: "think", text: part.text }) + "\n";
+        }
+      }
+    }
+
+    // 2. 데이터베이스 함수 호출이 트리거된 경우 시스템 가동 과정을 생각 스트림으로 전환 전송
     if (chunk.functionCalls && chunk.functionCalls.length > 0) {
       for (const call of chunk.functionCalls) {
         let functionResult = null;
         try {
           const args = call.args as any;
           const targetUser = args.username;
+          
+          yield JSON.stringify({ type: "think", text: `\n[에너뷰 시스템 인프라 연동] 데이터베이스에서 '${call.name}' 함수를 활성화하여 '${targetUser}' 님의 리얼타임 이력을 매핑하고 있습니다...\n` }) + "\n";
 
           if (call.name === "getUsageHistory") {
             const { getUsageHistory } = await import("./db");
@@ -216,12 +210,11 @@ export async function* streamChatWithMessage(
             functionResult = await getPointLogs(targetUser);
           }
 
-          // 💡 [버그 수정 핵심 위치] 불필요한 role 래핑을 제거하고 SDK 가 규정하는 순수한 Part 규격 배열로 전송합니다.
           const followUpStream = await chat.sendMessageStream({
             message: [
               {
                 functionResponse: {
-                  id: call.id, // 멀티턴 컨텍스트 정렬을 위해 고유 ID 필수 매핑
+                  id: call.id,
                   name: call.name,
                   response: { result: functionResult || "조회된 데이터가 없습니다." }
                 }
@@ -231,18 +224,18 @@ export async function* streamChatWithMessage(
 
           for await (const followUpChunk of followUpStream) {
             if (followUpChunk.text) {
-              yield followUpChunk.text;
+              yield JSON.stringify({ type: "text", text: followUpChunk.text }) + "\n";
             }
           }
-
         } catch (err: any) {
-          yield `\n⚠️ [데이터 조회 실패] 내부 오류가 발생했습니다: ${err.message}\n`;
+          yield JSON.stringify({ type: "text", text: `\n⚠️ 내부 데이터 조회 실패: ${err.message}\n` }) + "\n";
         }
       }
     }
 
+    // 3. 일반 최종 텍스트 출력
     if (chunk.text) {
-      yield chunk.text;
+      yield JSON.stringify({ type: "text", text: chunk.text }) + "\n";
     }
   }
 }
