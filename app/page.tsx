@@ -31,13 +31,9 @@ import {
   getUsageHistory,
   saveCertification,
   getCertifications,
-  saveChatMessage, // 👈 추가됨
-  getChatMessages  // 👈 추가됨
+  saveChatMessage, 
+  getChatMessages  
 } from "@/lib/db"
-import {
-  getGemmaAdvice,
-  analyzeImageWithGemini,
-} from "@/lib/gemini"
 import { loadUsageHistory, appendUsageLocal, type UsageRecord } from "@/lib/usage-storage"
 import { loadPoints, savePoints } from "@/lib/points-storage"
 import { AppShell } from "@/components/app/app-shell"
@@ -192,7 +188,6 @@ function MainContent() {
           console.error("인증 내역을 불러오는 데 실패했습니다:", certError);
         }
 
-        // 💬 과거 코칭 대화 내역 불러오기 로직 추가
         try {
           const chatHistory = await getChatMessages(nickname);
           if (chatHistory && chatHistory.length > 0) {
@@ -418,7 +413,6 @@ function MainContent() {
     ]);
     setIsCoachingLoading(true);
 
-    // 💬 사용자가 보낸 메시지를 서버에 저장합니다.
     if (nickname) {
       saveChatMessage(nickname, "user", content, userMessageId).catch(console.error);
     }
@@ -438,7 +432,7 @@ function MainContent() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let done = false;
-      let fullAssistantMessage = ""; // 👈 스트리밍 완성본을 담을 변수
+      let fullAssistantMessage = "";
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();
@@ -458,7 +452,6 @@ function MainContent() {
         }
       }
 
-      // 💬 스트리밍이 끝나면 완성된 어시스턴트 메시지를 서버에 저장합니다.
       if (nickname) {
         saveChatMessage(nickname, "assistant", fullAssistantMessage, assistantMessageId).catch(console.error);
       }
@@ -497,8 +490,6 @@ function MainContent() {
         const prompt = `사용자가 이번 달에 전기 ${latest.elec_kwh}kWh, 가스 ${latest.gas_m3}m3를 사용하여 총 ${latest.co2_kg.toFixed(2)}kg의 탄소를 배출했어. 이 사용자에게 에너지 절약을 독려하고 실생활에서 실천할 수 있는 팁을 친절하게 한국어로 조언해줘.`;
 
         const userMessageId = Date.now().toString();
-        // 실제 화면에는 프롬프트 전문이 보이지 않고 AI 응답만 추가되도록 구성된 기존 로직 유지
-        // 내부적으로는 질문을 저장해두는 것이 맥락 유지에 좋습니다.
         if (nickname) {
            saveChatMessage(nickname, "user", "[시스템: 사용량 기반 조언 요청]", userMessageId).catch(console.error);
         }
@@ -544,7 +535,6 @@ function MainContent() {
           }
         }
 
-        // 💬 스트리밍 완료 후 조언 내역 서버에 저장
         if (nickname) {
           saveChatMessage(nickname, "assistant", fullAssistantMessage, assistantMessageId).catch(console.error);
         }
@@ -567,10 +557,24 @@ function MainContent() {
     }
 
     try {
-      const { result, error } = await analyzeImageWithGemini(selectedImage)
-      if (error || !result) {
-        toast.error(error || "이미지 분석에 실패했습니다.")
-        return { ok: false, error: error ?? undefined }
+      // 🚀 [수정 완료] 브라우저 환경에서 직접 인프라 변수를 참조하여 튕기던 기존 호출을 서버 라우트('/api/analyze') 호출로 안전하게 우회 처리합니다.
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl: selectedImage }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.error || "이미지 분석에 실패했습니다.";
+        toast.error(errMsg);
+        return { ok: false, error: errMsg };
+      }
+
+      const { result } = await res.json();
+      if (!result) {
+        toast.error("이미지 분석 결과를 받지 못했습니다.");
+        return { ok: false, error: "no_result" };
       }
 
       if (String(result.action_found).toLowerCase() !== "true") {
