@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
+import { getRequestContext } from '@cloudflare/next-on-pages'; 
 
+// 1. 원래 모델 리스트 100% 동일하게 유지 (절대 변경 없음)
 const GEMMA_MODELS = [
   "gemma-4-31b-it",     
   "gemma-4-26b-a4b-it", 
@@ -18,10 +20,8 @@ function getAI() {
   if (!aiInstance) {
     let key = undefined;
     
-    // Cloudflare Pages 런타임 Secrets 자산을 패키지 임포트 없이 전역 Symbol로 직접 추출
     try {
-      const cloudflareSymbol = Symbol.for("__cloudflare-request-context__");
-      const context = (globalThis as any)[cloudflareSymbol];
+      const context = getRequestContext();
       if (context && context.env) {
         key = context.env.GEMINI_API_KEY || context.env.NEXT_PUBLIC_GEMINI_API_KEY;
       }
@@ -29,7 +29,6 @@ function getAI() {
       // 빌드 타임 컴파일 예외 방어
     }
     
-    // 로컬 개발 환경 또는 하위 호환성용 대피책
     if (!key) {
       key = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     }
@@ -44,9 +43,6 @@ function getAI() {
   return aiInstance;
 }
 
-/**
- * 텍스트 API 호출 (Fallback 포함)
- */
 export async function callTextApiWithFallback(
   prompt: string,
   models: string[] = GEMMA_MODELS,
@@ -97,25 +93,6 @@ export type ImageAnalysisResult = {
   estimated_save_kwh?: string;
 } | null;
 
-function extractJsonObject(text: string): ImageAnalysisResult {
-  const trimmed = text.trim();
-  let jsonStr = trimmed;
-  const startIdx = trimmed.indexOf("```");
-  if (startIdx !== -1) {
-    const endIdx = trimmed.lastIndexOf("```");
-    if (endIdx > startIdx) {
-      jsonStr = trimmed.substring(startIdx + 3, endIdx);
-      if (jsonStr.toLowerCase().startsWith("json")) jsonStr = jsonStr.substring(4);
-    }
-  }
-  const braceStart = jsonStr.indexOf("{");
-  const braceEnd = jsonStr.lastIndexOf("}");
-  if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
-    jsonStr = jsonStr.substring(braceStart, braceEnd + 1);
-  }
-  try { return JSON.parse(jsonStr) as ImageAnalysisResult; } catch { return null; }
-}
-
 export async function analyzeImageWithGemini(
   dataUrl: string,
   mimeTypeHint?: string
@@ -132,9 +109,9 @@ export async function analyzeImageWithGemini(
 
   for (const modelName of GEMINI_VISION_MODELS) {
     try {
-      const prompt = `이미지를 분석해서 에너지 절약 행동을 파악하고 JSON으로만 답변해: {"action_found": "true/false", "description": "설명", "estimated_save_kwh": "숫자"}`;
+      const prompt = `이미지를 분석해서 에너지 절약 행동을 파악해 주세요.`;
 
-      const result = await ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: modelName,
         contents: [
           {
@@ -144,14 +121,25 @@ export async function analyzeImageWithGemini(
               { inlineData: { data: encodedImage, mimeType } }
             ]
           }
-        ]
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              action_found: { type: "STRING" },
+              description: { type: "STRING" },
+              estimated_save_kwh: { type: "STRING" }
+            },
+            required: ["action_found", "description", "estimated_save_kwh"]
+          }
+        }
       });
 
-      const resultText = result.text;
-      if (!resultText) continue;
-
-      const parsed = extractJsonObject(resultText);
-      if (parsed) return { result: parsed, error: null };
+      if (response && response.text) {
+        const parsed = JSON.parse(response.text) as ImageAnalysisResult;
+        return { result: parsed, error: null };
+      }
     } catch (error: any) {
       lastErrorDetails = `[${modelName} 예외 발생] ${error.message}`;
       continue;
@@ -161,24 +149,98 @@ export async function analyzeImageWithGemini(
 }
 
 /**
- * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환
+ * 멀티턴 대화 내역을 포함하여 스트리밍 방식으로 답변을 반환 (원래 기본값 모델명 유지)
  */
 export async function* streamChatWithMessage(
   message: string,
   history: { role: "user" | "model"; parts: { text: string }[] }[] = [],
-  modelName: string = "gemini-3-flash-preview"
+  modelName: string = "gemini-3-flash-preview" // 💡 원래 쓰시던 기본값 모델명으로 복구 완료
 ) {
   const ai = getAI();
   if (!ai) throw new Error("⚠️ Gemini API Key가 설정되지 않았습니다.");
 
+  const enerviewTools = [
+    {
+      functionDeclarations: [
+        {
+          name: "getUsageHistory",
+          description: "사용자의 과거 전기 사용량, 가스 사용량 및 탄소 배출량 이력을 데이터베이스에서 직접 조회합니다.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              username: { type: "STRING", description: "조회할 대상 사용자의 닉네임" }
+            },
+            required: ["username"]
+          }
+        },
+        {
+          name: "getPointLogs",
+          description: "사용자가 에너뷰 앱 내에서 획득하거나 사용한 포인트 내역 히스토리를 조회합니다.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              username: { type: "STRING", description: "포인트를 조회할 대상 사용자의 닉네임" }
+            },
+            required: ["username"]
+          }
+        }
+      ]
+    }
+  ];
+
   const chat = ai.chats.create({
     model: modelName,
     history: history,
+    config: {
+      tools: enerviewTools, 
+      systemInstruction: "너는 친환경 에너지 가이드 에너뷰(Enerview) 코치야. 사용자가 과거 기록이나 포인트 조회를 요청하면 관련 함수를 알아서 호출해줘. 모든 답변은 따뜻한 한국어로 해줘."
+    }
   });
 
   const stream = await chat.sendMessageStream({ message });
 
   for await (const chunk of stream) {
+    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+      for (const call of chunk.functionCalls) {
+        let functionResult = null;
+        try {
+          const args = call.args as any;
+          const targetUser = args.username;
+
+          if (call.name === "getUsageHistory") {
+            const { getUsageHistory } = await import("./db");
+            functionResult = await getUsageHistory(targetUser);
+          } else if (call.name === "getPointLogs") {
+            const { getPointLogs } = await import("./db");
+            functionResult = await getPointLogs(targetUser);
+          }
+
+          const followUpStream = await chat.sendMessageStream({
+            message: [
+              {
+                role: "tool",
+                parts: [{
+                  functionResponse: {
+                    name: call.name,
+                    response: { result: functionResult || "조회된 데이터가 없습니다." }
+                  }
+                }]
+              }
+            ]
+          });
+
+          for await (const followUpChunk of followUpStream) {
+            if (followUpChunk.text) {
+              yield followUpChunk.text;
+            }
+          }
+
+        } catch (err: any) {
+          yield `\n⚠️ [데이터 조회 실패] 내부 오류가 발생했습니다: ${err.message}\n`;
+        }
+      }
+    }
+
     if (chunk.text) {
       yield chunk.text;
     }
