@@ -102,7 +102,7 @@ export function CarbonMapTab() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Real Leaflet Map */}
+        {/* Real Leaflet Map
         <Card className="xl:col-span-8 overflow-hidden rounded-[32px] border-none shadow-2xl h-[650px] relative z-0">
           <MapContainer 
             center={[37.5665, 126.9780]} 
@@ -126,14 +126,13 @@ export function CarbonMapTab() {
             ))}
           </MapContainer>
 
-          {/* Map Overlay Legend - glass-card 적용 */}
           <div className="absolute top-6 left-6 z-[1000] flex flex-col gap-3 glass-card p-5 rounded-3xl text-[11px] font-black">
             <div className="text-muted-foreground text-[9px] uppercase tracking-widest mb-1">CO₂ Emission Scale</div>
             <div className="flex items-center gap-2.5"><div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" /> 150kg 이하 (안전)</div>
             <div className="flex items-center gap-2.5"><div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" /> 150 - 170kg (보통)</div>
             <div className="flex items-center gap-2.5"><div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]" /> 200kg 이상 (주의)</div>
           </div>
-        </Card>
+        </Card> */}
 
         {/* Info Sidebar */}
         <div className="xl:col-span-4 flex flex-col gap-4">
@@ -197,7 +196,7 @@ export function CarbonMapTab() {
             <div className="flex-1">
               <p className="text-[11px] font-black opacity-70 uppercase tracking-wider">Analysis Insight</p>
               <p className="text-sm font-bold mt-1 leading-tight">
-                2024년 통계청 데이터로 일단 넣어놨습니다, 다른 방식으로도 넣을 수 있음. 
+                지도 부, 다른 방식으로도 넣을 수 있음. 
               </p>
             </div>
             <ChevronRight className="w-5 h-5 opacity-40 group-hover:translate-x-1 transition-transform" />

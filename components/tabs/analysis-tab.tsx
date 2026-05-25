@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import {
   Zap,
   Flame,
@@ -24,6 +24,63 @@ interface AnalysisTabProps {
   chartData: { date: string; carbon: number }[]
   isSaving?: boolean
 }
+// 전기요금에서 kWh를 역산하기 위한 계산 함수
+
+const calculateBill = (kwh: number): number => {
+  let basic = 0
+  let energy = 0
+  
+  if (kwh <= 200) {
+    basic = 730
+    energy = kwh * 105.0
+  } else if (kwh <= 400) {
+    basic = 1260
+    energy = (200 * 105.0) + ((kwh - 200) * 174.0)
+  } else {
+    basic = 6060
+    energy = (200 * 105.0) + (200 * 174.0) + ((kwh - 400) * 242.3)
+  }
+  
+  const climate = kwh * 9.0
+  const fuel = kwh * 5.0
+  
+  const pureTotal = basic + energy + climate + fuel
+  
+  // 부가가치세 10% (원 단위 반올림)
+  const vat = Math.round(pureTotal * 0.1)
+  
+  // 전력산업기반기금 2.7% (10원 미만 절사, 2025.7.1 개정 인하 요율 반영)
+  const fund = Math.floor((pureTotal * 0.027) / 10) * 10 
+  
+  const total = pureTotal + vat + fund
+  
+  // 최종 청구금액 (10원 단위 미만 절사)
+  return Math.floor(total / 10) * 10
+}
+
+const inverseCalculateKwh = (targetBill: number): number => {
+  if (targetBill <= 0) return 0
+  
+  let low = 0
+  let high = 50000 // 일반 가정 최대치를 넘어가는 여유 탐색 범위
+  let mid = 0
+  
+  // 10원 단위 절사로 인한 계단식 값을 이분 탐색(Binary Search)으로 추적
+  for (let i = 0; i < 100; i++) {
+    mid = (low + high) / 2
+    const currentBill = calculateBill(mid)
+    
+    if (currentBill === targetBill) {
+      break
+    } else if (currentBill < targetBill) {
+      low = mid
+    } else {
+      high = mid
+    }
+  }
+  
+  return Number(mid.toFixed(1))
+}
 
 export function AnalysisTab({
   electricityUsage,
@@ -36,6 +93,25 @@ export function AnalysisTab({
   isSaving,
 }: AnalysisTabProps) {
   const [isCalculating, setIsCalculating] = useState(false)
+
+  // 입력된 전기요금을 시각적으로 관리하기 위한 로컬 상태
+  const [electricityBill, setElectricityBill] = useState(() => {
+    return electricityUsage ? String(calculateBill(Number(electricityUsage))) : ""
+  })
+
+  // 외부(부모 컴포넌트)에서 초기화되거나 값이 변경될 때 로컬 요금 상태를 동기화
+  useEffect(() => {
+    if (!electricityUsage) {
+      setElectricityBill("")
+    } else {
+      const currentKwh = inverseCalculateKwh(Number(electricityBill))
+      // 부모의 kWh가 현재 화면의 요금에서 역산된 kWh와 다르다면 외부에서 덮어씌운 것으로 간주하여 동기화
+      if (Number(electricityUsage) !== currentKwh) {
+        setElectricityBill(String(calculateBill(Number(electricityUsage))))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [electricityUsage])
 
   const stats = useMemo(() => {
     const last = chartData.at(-1)?.carbon ?? null
@@ -59,6 +135,19 @@ export function AnalysisTab({
       await onCalculate()
     } finally {
       setIsCalculating(false)
+    }
+  }
+
+  // 요금 입력 시 kWh로 역산하여 전달
+  const handleElectricityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const bill = e.target.value
+    setElectricityBill(bill)
+    
+    if (!bill || isNaN(Number(bill))) {
+      onElectricityChange("")
+    } else {
+      const kwh = inverseCalculateKwh(Number(bill))
+      onElectricityChange(kwh.toString())
     }
   }
 
@@ -184,19 +273,24 @@ export function AnalysisTab({
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground ml-2 uppercase tracking-widest">
-                <Zap className="w-4 h-4 text-yellow-500" /> Electricity
+                <Zap className="w-4 h-4 text-yellow-500" /> Electricity (고압 요금 역산)
               </label>
               <div className="relative group">
-                {/* 배경을 투명하게 하거나 라이트/다크모드 대응 */}
                 <input
                   type="number"
-                  value={electricityUsage}
-                  onChange={(e) => onElectricityChange(e.target.value)}
-                  placeholder="0"
+                  value={electricityBill}
+                  onChange={handleElectricityChange}
+                  placeholder="전기요금 입력"
                   className="w-full bg-black/5 dark:bg-white/5 rounded-2xl px-6 py-5 text-xl font-bold text-foreground placeholder:text-muted-foreground/50 border border-black/10 dark:border-white/5 focus:border-primary/50 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all"
                 />
-                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">kWh</span>
+                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">원</span>
               </div>
+              {/* 역산된 kWh 수치를 사용자에게 시각적으로 안내 */}
+              {electricityUsage && (
+                <p className="text-xs text-right text-muted-foreground mr-2 font-medium">
+                  누진세 환산 시 약 <span className="text-primary">{electricityUsage}</span> kWh 사용됨
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -304,6 +398,23 @@ export function AnalysisTab({
             </ResponsiveContainer>
           )}
         </div>
+      </div>
+
+      {/* 요금 계산 기준 안내 (작은 글씨) */}
+      <div className="text-[11px] text-muted-foreground/50 bg-black/5 dark:bg-white/5 rounded-2xl p-4 space-y-1.5">
+        <p className="font-bold text-muted-foreground/70 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5" />
+          전기요금 역산 적용 기준 (한국전력 주택용 고압, 기타계절)
+        </p>
+        <ul className="list-disc list-inside space-y-1 ml-1">
+          <li>누진제: 1단계(~200kWh) 105.0원 / 2단계(201~400kWh) 174.0원 / 3단계(400초과) 242.3원</li>
+          <li>기본요금: 1단계 730원 / 2단계 1,260원 / 3단계 6,060원</li>
+          <li>별도요금: 기후환경요금(9원/kWh) 및 연료비조정요금(5원/kWh)</li>
+          <li>제세공과금: 부가가치세 10% 및 전력산업기반기금 2.7% 반영</li>
+        </ul>
+        <p className="pt-1 opacity-70">
+          ※ 10원 단위 절사 규정으로 인해 입력된 요금에서 역산된 전력량(kWh)은 산출된 근사치입니다.
+        </p>
       </div>
       
     </div>
